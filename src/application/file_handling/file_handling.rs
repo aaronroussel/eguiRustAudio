@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 use std::fs;
 use audiotags::Tag;
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
+
+#[derive(Clone)]
 pub struct music_file {
     pub name: String,
     pub file_path: PathBuf,

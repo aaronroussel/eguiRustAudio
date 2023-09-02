@@ -1,15 +1,17 @@
+use std::thread;
 use super::file_handling::file_handling::*;
 use super::file_handling::AudioPlayer::*;
 use egui::*;
 
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)] // if we add new fields, give them default values when deserializing old state
+// #[derive(serde::Deserialize, serde::Serialize)]
+// #[serde(default)] // if we add new fields, give them default values when deserializing old state
  
 pub struct TemplateApp {
     // Example stuff:
     music_library: Vec<music_file>,
+    audio_handler: AudioHandler,
 
     // this how you opt-out of serialization of a member
     // #[serde(skip)]
@@ -21,6 +23,7 @@ impl Default for TemplateApp {
         Self {
             // Example stuff:
             music_library: get_library(),
+            audio_handler: AudioHandler::new()
         }
     }
 }
@@ -35,9 +38,6 @@ impl TemplateApp {
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        }
 
         Default::default()
     }
@@ -47,15 +47,13 @@ impl eframe::App for TemplateApp {
     
     
     /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
+
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self {music_library} = self;
+        let Self {music_library, audio_handler} = self;
 
         // Examples of how to create different panels and windows.
         // Pick whichever suits you.
@@ -66,22 +64,27 @@ impl eframe::App for TemplateApp {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.vertical_centered(|ui|{
                 if ui.button("PLAY").clicked() {
-                    
+                    _frame.close();
                 }
             })   
         });
 
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            
-            ui.vertical(|ui|{
-                 for x in music_library.clone() {
+            ui.vertical(|ui| {
+                for x in music_library {
                     if ui.add(Label::new(&x.title).sense(Sense::click())).double_clicked() {
-                        _frame.close();
-                    };
-     
+                        let file_path = x.file_path.clone(); // Clone the file path if needed
+
+                        let audio_handler = &mut audio_handler; // Borrow mutably for the closure
+
+                        thread::spawn(move || {
+                            audio_handler.load_file(&file_path);
+                            audio_handler.play_file();
+                        });
+                    }
                 }
-            })
+            });
         });
 
         if false {
