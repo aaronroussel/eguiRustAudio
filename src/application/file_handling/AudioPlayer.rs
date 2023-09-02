@@ -14,7 +14,7 @@ impl AudioHandler {
         AudioHandler {
             sink: Sink::try_new(&OutputStream::try_default().unwrap()).unwrap(),
             file: None,
-            source: None
+            source: None,
         }    
     }
     
