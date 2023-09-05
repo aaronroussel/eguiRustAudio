@@ -9,17 +9,6 @@ pub struct AudioHandler {
     pub decoder: Option<Decoder<BufReader<File>>>,
 }
 
-impl Clone for AudioHandler {
-    fn clone(&self) -> Self {
-        // Create a new audio handler with a new sink and None for decoder
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        AudioHandler {
-            sink: Sink::try_new(&stream_handle).unwrap(),
-            decoder: None,
-        }
-    }
-}
-
 impl AudioHandler {
     pub fn new() -> AudioHandler {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -38,6 +27,19 @@ impl AudioHandler {
     pub fn play_file(&mut self) {
         if let Some(decoder) = self.decoder.take() {
             self.sink.append(decoder);
+            self.sink.play();
+            // self.sink.sleep_until_end();
         }
     }
 }
+
+
+
+    // Play the sound directly on the device
+   // sink.append(source);
+
+
+
+    // Play the sound in a seperate audio thread
+    // so we need to keep the main thread alive while it's playing
+   // sink.sleep_until_end();

@@ -2,7 +2,6 @@ use std::thread;
 use super::file_handling::file_handling::*;
 use super::file_handling::AudioPlayer::*;
 use egui::*;
-use std::sync::{Arc, Mutex, Condvar};
 
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -10,18 +9,21 @@ use std::sync::{Arc, Mutex, Condvar};
 // #[serde(default)] // if we add new fields, give them default values when deserializing old state
  
 pub struct TemplateApp {
+    // Example stuff:
     music_library: Vec<music_file>,
-    audio_handler: Arc<Mutex<AudioHandler>>,
-    play_signal: Arc<(Mutex<bool>, Condvar)>,
-}
+    audio_handler: AudioHandler,
 
+    // this how you opt-out of serialization of a member
+    // #[serde(skip)]
+
+}
 
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
+            // Example stuff:
             music_library: get_library(),
-            audio_handler: Arc::new(Mutex::new(AudioHandler::new())),
-            play_signal: Arc::new((Mutex::new(false), Condvar::new())),
+            audio_handler: AudioHandler::new()
         }
     }
 }
@@ -51,8 +53,7 @@ impl eframe::App for TemplateApp {
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let music_library = &self.music_library;
-        let audio_handler = &mut self.audio_handler;
+        let Self {music_library, audio_handler} = self;
 
         // Examples of how to create different panels and windows.
         // Pick whichever suits you.
@@ -73,23 +74,12 @@ impl eframe::App for TemplateApp {
             ui.vertical(|ui| {
                 for x in music_library {
                     if ui.add(Label::new(&x.title).sense(Sense::click())).double_clicked() {
-                        
-                        let file_path = x.file_path.clone();
-                        
-                        let audio_handler = self.audio_handler.clone();
-                        let play_signal = self.play_signal.clone();
-                        
+                        let file_path = x.file_path.clone(); // Clone the file path if needed
+
+                        let audio_handler = &mut audio_handler; // Borrow mutably for the closure
+
                         thread::spawn(move || {
-                            let mut audio_handler = audio_handler.lock().unwrap();
                             audio_handler.load_file(&file_path);
-
-                            // Signal that the audio is ready to be played
-                            let (lock, cvar) = &*play_signal;
-                            let mut play_ready = lock.lock().unwrap();
-                            *play_ready = true;
-                            cvar.notify_one();
-
-                            // Play the audio
                             audio_handler.play_file();
                         });
                     }
