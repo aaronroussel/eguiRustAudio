@@ -1,8 +1,11 @@
+use std::fs::File;
+use std::io::BufReader;
 use std::thread;
 use std::sync::mpsc;
 use super::file_handling::file_handling::*;
 use super::file_handling::AudioPlayer::*;
 use egui::*;
+use rodio::{Decoder, OutputStream, source::Source, Sink};
 use std::sync::{Arc, Mutex};
 
 pub struct TemplateApp {
@@ -14,17 +17,12 @@ impl Default for TemplateApp {
     fn default() -> Self {
         let (tx, rx) = mpsc::channel::<String>();  // Create a channel
 
-        // Create and start audio handler thread
-        let audio_handler = Arc::new(Mutex::new(AudioHandler::new()));
-        let audio_handler_clone = audio_handler.clone();
+
         thread::spawn(move || {
             loop {
-                let filepath = rx.recv().unwrap();
+                let filepath = &rx.recv().unwrap();
                 println!("audio playback started");  // Blocking wait for a message
-                let path = std::path::Path::new(&filepath);  // Convert String to Path
-                let mut audio_handler_locked = audio_handler.lock().unwrap();
-                // audio_handler_locked.load_file(&path);
-                audio_handler_locked.play_file(&path);
+                play_audio(filepath);
             }
         });
 
@@ -67,10 +65,23 @@ impl eframe::App for TemplateApp {
                     if ui.add(Label::new(&x.name).sense(Sense::click())).double_clicked() {
                         // Send the filepath to the audio handler thread
                         println!("Double Click Executed!");
-                        let _ = sender.send(x.file_path.to_str().unwrap().to_string());
+                        let file_path_str = x.file_path.to_str().unwrap().to_string();
+                        let _ = sender.send(file_path_str);     
                     }
                 }
             });
         });
     }
 }
+
+    pub fn play_audio(path: &String)
+    {
+        println!("begin audio function");
+        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let sink = Sink::try_new(&stream_handle).unwrap();
+        let file = BufReader::new(File::open(path).unwrap());
+        let source = Decoder::new(file).unwrap();
+        sink.append(source);
+        sink.sleep_until_end();
+        println!("audio begin"); 
+    }
