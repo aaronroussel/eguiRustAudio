@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 use std::fs;
 use audiotags::Tag;
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
+
+#[derive(Clone)]
 pub struct music_file {
     pub name: String,
     pub file_path: PathBuf,
@@ -11,7 +12,7 @@ pub struct music_file {
 pub fn get_library() -> Vec<music_file> {
     let mut music_files: Vec<music_file> = Vec::new();
     
-    let paths = fs::read_dir("C:\\Users\\aaron\\Music\\songs").unwrap(); // THIS FOLDER MUST ONLY CONTAIN MUSIC FILES OR SHIT WILL BREAK!!!
+    let paths = fs::read_dir("/Users/aaronroussel/Music/Music/Media.localized/Music/Future/Unknown Album").unwrap(); // THIS FOLDER MUST ONLY CONTAIN MUSIC FILES OR SHIT WILL BREAK!!!
     
     for p in paths {
         let dir_entry = p.unwrap();
