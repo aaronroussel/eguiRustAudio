@@ -1,32 +1,53 @@
 use std::thread;
+use std::sync::mpsc;
 use super::file_handling::file_handling::*;
 use super::file_handling::AudioPlayer::*;
 use egui::*;
+<<<<<<< HEAD
 use std::sync::{Arc, Mutex, Condvar};
+=======
+use std::sync::{Arc, Mutex};
+>>>>>>> 443a4b9497e680a784ebc17d5f86429cf703f57e
 
-
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-// #[derive(serde::Deserialize, serde::Serialize)]
-// #[serde(default)] // if we add new fields, give them default values when deserializing old state
- 
 pub struct TemplateApp {
     music_library: Vec<music_file>,
+<<<<<<< HEAD
     audio_handler: Arc<Mutex<AudioHandler>>,
     play_signal: Arc<(Mutex<bool>, Condvar)>,
+=======
+    sender: mpsc::Sender<String>,  // Sender to send filepath to audio handler thread
+>>>>>>> 443a4b9497e680a784ebc17d5f86429cf703f57e
 }
 
 
 impl Default for TemplateApp {
     fn default() -> Self {
+        let (tx, rx) = mpsc::channel::<String>();  // Create a channel
+
+        // Create and start audio handler thread
+        let audio_handler = Arc::new(Mutex::new(AudioHandler::new()));
+        let audio_handler_clone = audio_handler.clone();
+        thread::spawn(move || {
+            loop {
+                let filepath = rx.recv().unwrap();  // Blocking wait for a message
+                let path = std::path::Path::new(&filepath);  // Convert String to Path
+                let mut audio_handler_locked = audio_handler.lock().unwrap();
+                audio_handler_locked.load_file(&path);
+                audio_handler_locked.play_file();
+            }
+        });
+
         Self {
             music_library: get_library(),
+<<<<<<< HEAD
             audio_handler: Arc::new(Mutex::new(AudioHandler::new())),
             play_signal: Arc::new((Mutex::new(false), Condvar::new())),
+=======
+            sender: tx,
+>>>>>>> 443a4b9497e680a784ebc17d5f86429cf703f57e
         }
     }
 }
-
-
 
 impl TemplateApp {
     /// Called once before the first frame.
@@ -41,25 +62,16 @@ impl TemplateApp {
     }
 }
 
+
 impl eframe::App for TemplateApp {
-    
-    
-    /// Called by the frame work to save state before shutdown.
-
-
-    /// Called each time the UI needs repainting, which may be many times per second.
-    /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+<<<<<<< HEAD
         let music_library = &self.music_library;
         let audio_handler = &mut self.audio_handler;
+=======
+        let Self { music_library, sender, .. } = self;
+>>>>>>> 443a4b9497e680a784ebc17d5f86429cf703f57e
 
-        // Examples of how to create different panels and windows.
-        // Pick whichever suits you.
-        // Tip: a good default choice is to just keep the `CentralPanel`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
-        #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.vertical_centered(|ui|{
                 if ui.button("PLAY").clicked() {
@@ -68,10 +80,10 @@ impl eframe::App for TemplateApp {
             })   
         });
 
-
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical(|ui| {
                 for x in music_library {
+<<<<<<< HEAD
                     if ui.add(Label::new(&x.title).sense(Sense::click())).double_clicked() {
                         
                         let file_path = x.file_path.clone();
@@ -92,18 +104,14 @@ impl eframe::App for TemplateApp {
                             // Play the audio
                             audio_handler.play_file();
                         });
+=======
+                    if ui.add(Label::new(&x.name).sense(Sense::click())).double_clicked() {
+                        // Send the filepath to the audio handler thread
+                        let _ = sender.send(x.file_path.to_str().unwrap().to_string());
+>>>>>>> 443a4b9497e680a784ebc17d5f86429cf703f57e
                     }
                 }
             });
         });
-
-        if false {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally choose either panels OR windows.");
-            });
-        }
     }
 }
