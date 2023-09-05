@@ -15,22 +15,28 @@ impl AudioHandler {
         AudioHandler {
             sink: Sink::try_new(&stream_handle).unwrap(),
             decoder: None,
-        }    
+        }
     }
-    
+
     pub fn load_file(&mut self, path: &Path) {
         let file = File::open(path).unwrap();
         let buf_reader = BufReader::new(file);
-        self.decoder = Some(Decoder::new(buf_reader).unwrap());      
-    } 
-    
-    pub fn play_file(&mut self) {
-        if let Some(decoder) = self.decoder.take() {
-            self.sink.append(decoder);
-            self.sink.play();
-            // self.sink.sleep_until_end();
-        }
+        self.decoder = Some(Decoder::new(buf_reader).unwrap());
+        println!("audio file loaded");
     }
+
+    pub fn play_file(&mut self, path: &Path) {
+        let file = File::open(path).unwrap();
+        let buf_reader = BufReader::new(file);
+        let decoder = Decoder::new(buf_reader).unwrap();
+    
+        self.sink.append(decoder);
+        self.sink.play();
+        println!("audio file playing");
+        // Comment out the following line if you don't want to block the thread.
+        // self.sink.sleep_until_end();
+    }
+
 }
 
 
