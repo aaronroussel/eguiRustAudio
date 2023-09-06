@@ -6,40 +6,41 @@ use rodio::{Decoder, OutputStream, source::Source, Sink};
 
 pub struct AudioHandler {
     pub sink: Sink,
-    pub decoder: Option<Decoder<BufReader<File>>>,
+    pub stream: OutputStream,
 }
 
 impl AudioHandler {
     pub fn new() -> AudioHandler {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let (stream, stream_handle) = OutputStream::try_default().unwrap();
         AudioHandler {
             sink: Sink::try_new(&stream_handle).unwrap(),
-            decoder: None,
-        }    
+            stream,  // Store the stream to keep it alive
+        }
     }
-    
+
     pub fn load_file(&mut self, path: &Path) {
         let file = File::open(path).unwrap();
         let buf_reader = BufReader::new(file);
-        self.decoder = Some(Decoder::new(buf_reader).unwrap());      
-    } 
-    
-    pub fn play_file(&mut self) {
-        if let Some(decoder) = self.decoder.take() {
-            self.sink.append(decoder);
-            self.sink.play();
-            // self.sink.sleep_until_end();
-        }
+        let source = Decoder::new(buf_reader).unwrap();
+        self.sink.append(source);
+        self.sink.play();
+        println!("audio file playing");
+    }
+
+    pub fn pause_playback(&mut self) {
+        self.sink.pause();
+        println!("audio paused");
+    }
+
+    pub fn stop_playback(&mut self) {
+        self.sink.stop();
+        println!("audio stopped");
+    }
+
+    pub fn resume_playback(&mut self) {
+        self.sink.play();
     }
 }
 
 
 
-    // Play the sound directly on the device
-   // sink.append(source);
-
-
-
-    // Play the sound in a seperate audio thread
-    // so we need to keep the main thread alive while it's playing
-   // sink.sleep_until_end();

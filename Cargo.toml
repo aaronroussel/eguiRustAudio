@@ -10,6 +10,7 @@ rust-version = "1.65"
 egui = "0.22.0"
 audiotags = "0.4.1"
 rodio = "0.17.1"
+image = "0.23.14"
 eframe = { version = "0.22.0", default-features = false, features = [
     "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
