@@ -10,7 +10,7 @@ fn main() -> eframe::Result<()> {
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        "eframe template",
+        "Rust Audio Player",
         native_options,
         Box::new(|cc| Box::new(eguiRustAudio::application::app::TemplateApp::new(cc))),
     )

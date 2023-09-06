@@ -1,34 +1,24 @@
-use std::fs::File;
-use std::io::BufReader;
-use std::thread;
-use std::sync::mpsc;
+
 use super::file_handling::file_handling::*;
 use super::file_handling::AudioPlayer::*;
+
 use egui::*;
-use rodio::{Decoder, OutputStream, source::Source, Sink};
-use std::sync::{Arc, Mutex};
+
 
 pub struct TemplateApp {
     music_library: Vec<music_file>,
-    sender: mpsc::Sender<String>,  // Sender to send filepath to audio handler thread
+    audio_player: AudioHandler,
+    seek: f32,  // Sender to send filepath to audio handler thread
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
-        let (tx, rx) = mpsc::channel::<String>();  // Create a channel
 
-
-        thread::spawn(move || {
-            loop {
-                let filepath = &rx.recv().unwrap();
-                println!("audio playback started");  // Blocking wait for a message
-                play_audio(filepath);
-            }
-        });
 
         Self {
             music_library: get_library(),
-            sender: tx,
+            audio_player: AudioHandler::new(),
+            seek: 1.0,
         }
     }
 }
@@ -37,11 +27,6 @@ impl TemplateApp {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
-        // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
-
-        // Load previous app state (if any).
-        // Note that you must enable the `persistence` feature for this to work.
-
         Default::default()
     }
 }
@@ -49,39 +34,79 @@ impl TemplateApp {
 
 impl eframe::App for TemplateApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { music_library, sender, .. } = self;
+        let Self { music_library,  .. } = self;
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            ui.vertical_centered(|ui|{
-                if ui.button("PLAY").clicked() {
-                    _frame.close();
+            ui.vertical_centered(|ui| {
+                if self.audio_player.sink.empty() {
+                    if ui.button("PLAY").clicked() {
+                        // nothing
+                    }   
                 }
+                else {
+                    if self.audio_player.sink.is_paused() {
+                        if ui.button("PLAY").clicked() {
+                            self.audio_player.resume_playback();
+                        }
+                    }
+                    else {
+                        if ui.button("PAUSE").clicked() {
+                            self.audio_player.pause_playback();
+                        }
+                    }
+                }
+                
+                if ui.add(Slider::new(&mut self.seek, 0.0..=1.0)
+                    .text("Volume")
+                    .show_value(false)
+                    .trailing_fill(true)).dragged(){
+                        self.audio_player.sink.set_volume(self.seek);
+                    };
+                    
+                
             })   
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.vertical(|ui| {
-                for x in music_library {
-                    if ui.add(Label::new(&x.name).sense(Sense::click())).double_clicked() {
-                        // Send the filepath to the audio handler thread
-                        println!("Double Click Executed!");
-                        let file_path_str = x.file_path.to_str().unwrap().to_string();
-                        let _ = sender.send(file_path_str);     
-                    }
-                }
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                egui::Grid::new("some_unique_id")
+                    .striped(true)
+                    .max_col_width(200.0)
+                    .min_col_width(200.0)
+                    .show(ui, |ui|{
+                        ui.label("Title:");
+                        ui.label("Artist:");
+                        ui.label("Album:");
+                        ui.label("Duration:");
+                        ui.end_row();
+                        for z in music_library {
+                            if &z.title == "" {
+                                if ui.add(Label::new(&z.name).sense(Sense::click())).double_clicked() {
+                                    self.audio_player.stop_playback();
+                                    println!("double click executed");
+                                    let file_path = &z.file_path;
+                                    self.audio_player.load_file(file_path.as_path());
+                                }
+                            }
+                            else {
+                                if ui.add(Label::new(&z.title).sense(Sense::click())).double_clicked() {
+                                    self.audio_player.stop_playback();
+                                    println!("double click executed");
+                                    let file_path = &z.file_path;
+                                    self.audio_player.load_file(file_path.as_path());
+                            }
+                            }
+                            ui.label(&z.artist);
+                            ui.label(&z.album);
+                            ui.label(&z.duration.to_string());
+                            ui.end_row();
+                        }
+                });
             });
+            
         });
+        
+
     }
 }
 
-    pub fn play_audio(path: &String)
-    {
-        println!("begin audio function");
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
-        let file = BufReader::new(File::open(path).unwrap());
-        let source = Decoder::new(file).unwrap();
-        sink.append(source);
-        sink.sleep_until_end();
-        println!("audio begin"); 
-    }
