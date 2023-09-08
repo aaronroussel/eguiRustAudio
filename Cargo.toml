@@ -8,6 +8,7 @@ rust-version = "1.65"
 
 [dependencies]
 egui = "0.22.0"
+egui-modal = "0.2.4"
 audiotags = "0.4.1"
 rodio = "0.17.1"
 image = "0.23.14"
