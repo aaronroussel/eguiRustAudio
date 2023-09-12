@@ -74,3 +74,15 @@ pub fn get_from_path(path_string: &str) -> Vec<music_file> {
     
     music_files
 }
+
+
+#[derive(Clone)]
+pub struct MusicCollection {
+    pub name: String,
+    pub collection: Vec<music_file>,
+    pub song_count: i32,
+}
+
+impl MusicCollection {
+    
+}
