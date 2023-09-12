@@ -19,7 +19,7 @@ impl Default for TemplateApp {
 
 
         Self {
-            music_library: get_library(),
+            music_library: get_library().unwrap(),
             audio_player: AudioHandler::new(),
             seek: 1.0,
             fp: "".to_owned(),
@@ -56,13 +56,16 @@ impl eframe::App for TemplateApp {
                 }
             });
             filepath_modal.buttons(ui, |ui| {
-                if filepath_modal.button(ui, "close").clicked() {
+                if filepath_modal.button(ui, "Add Folder").clicked() {
                     let new_music_files = get_from_path(&self.fp);
                     for x in new_music_files {
                         self.music_library.push(x);
                     }
                     filepath_modal.close();
                     self.fp = "".to_owned();
+                }
+                if filepath_modal.button(ui, "Cancel").clicked() {
+                    filepath_modal.close();
                 }        
             });
         });
@@ -71,10 +74,10 @@ impl eframe::App for TemplateApp {
             egui::menu::bar(ui, |ui|{
                 ui.menu_button("File", |ui|{
                     if ui.button("Add music file").clicked() {
-                        filepath_modal.open()
+                        // filepath_modal.open()    this adds by folder, not file. will fix later
                     }
                     if ui.button("Add music folder").clicked() {
-                        // do stuff here
+                        filepath_modal.open()
                     }
                 });
                 ui.menu_button("Edit", |ui| {

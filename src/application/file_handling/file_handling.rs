@@ -18,7 +18,7 @@ pub fn get_library() -> Result<Vec<music_file>, io::Error> {
     
 
 // THIS FOLDER MUST ONLY CONTAIN MUSIC FILES OR SHIT WILL BREAK!!!
-    let paths = match fs::read_dir("C:\\Users\\aones\\Music") {
+    let paths = match fs::read_dir("/Users/aaronroussel/Music/Music/Media.localized/Music/Future/Unknown Album") {
         Ok(paths) => paths,
         Err(err) => {
             print!("Error reading directory: {}", err);
