@@ -2,13 +2,16 @@
 use super::file_handling::file_handling::*;
 use super::file_handling::AudioPlayer::*;
 
+use egui_modal;
 use egui::*;
+use egui::Color32;
 
 
 pub struct TemplateApp {
     music_library: Vec<music_file>,
     audio_player: AudioHandler,
-    seek: f32,  // Sender to send filepath to audio handler thread
+    seek: f32,
+    fp: String, // Sender to send filepath to audio handler thread
 }
 
 impl Default for TemplateApp {
@@ -19,6 +22,7 @@ impl Default for TemplateApp {
             music_library: get_library(),
             audio_player: AudioHandler::new(),
             seek: 1.0,
+            fp: "".to_owned(),
         }
     }
 }
@@ -27,6 +31,7 @@ impl TemplateApp {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
+        
         Default::default()
     }
 }
@@ -34,9 +39,51 @@ impl TemplateApp {
 
 impl eframe::App for TemplateApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { music_library,  .. } = self;
+        // let Self { music_library,  .. } = self;
 
+        let filepath_modal = egui_modal::Modal::new(ctx, "filepath modal")
+        .with_close_on_outside_click(true);
+        filepath_modal.show(|ui| {
+            filepath_modal.title(ui, "Enter File Path");
+
+            filepath_modal.frame(ui, |ui|{
+                
+                let fp_edit = ui.add(TextEdit::singleline(&mut self.fp)
+                    .hint_text("Enter filepath"));
+                if fp_edit.changed()
+                {
+                    
+                }
+            });
+            filepath_modal.buttons(ui, |ui| {
+                if filepath_modal.button(ui, "close").clicked() {
+                    let new_music_files = get_from_path(&self.fp);
+                    for x in new_music_files {
+                        self.music_library.push(x);
+                    }
+                    filepath_modal.close();
+                    self.fp = "".to_owned();
+                }        
+            });
+        });
+        
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            egui::menu::bar(ui, |ui|{
+                ui.menu_button("File", |ui|{
+                    if ui.button("Add music file").clicked() {
+                        filepath_modal.open()
+                    }
+                    if ui.button("Add music folder").clicked() {
+                        // do stuff here
+                    }
+                });
+                ui.menu_button("Edit", |ui| {
+                    if ui.button("Create new Playlist").clicked() {
+                        
+                    }
+                })   
+            });
+            ui.style_mut().spacing.slider_width = 100.0;
             ui.vertical_centered(|ui| {
                 if self.audio_player.sink.empty() {
                     if ui.button("PLAY").clicked() {
@@ -63,8 +110,21 @@ impl eframe::App for TemplateApp {
                         self.audio_player.sink.set_volume(self.seek);
                     };
                     
+                ui.add(ProgressBar::new(0.5)
+                    .fill(Color32::GRAY)
+                    .desired_width(400.0)
+                    .text("1:29"));
+                    
                 
             })   
+        });
+        
+        egui::SidePanel::left("left panel").show(ctx, |ui| {
+            ui.label("Library");
+            
+            egui::CollapsingHeader::new("Playlists").open(Some(true)).show(ui, |ui|{
+                ui.label("Playlist 1");
+            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -79,7 +139,7 @@ impl eframe::App for TemplateApp {
                         ui.label("Album:");
                         ui.label("Duration:");
                         ui.end_row();
-                        for z in music_library {
+                        for z in &self.music_library {
                             if &z.title == "" {
                                 if ui.add(Label::new(&z.name).sense(Sense::click())).double_clicked() {
                                     self.audio_player.stop_playback();
@@ -95,18 +155,15 @@ impl eframe::App for TemplateApp {
                                     let file_path = &z.file_path;
                                     self.audio_player.load_file(file_path.as_path());
                             }
-                            }
+                        }
                             ui.label(&z.artist);
                             ui.label(&z.album);
                             ui.label(&z.duration.to_string());
                             ui.end_row();
-                        }
+                    }
                 });
             });
-            
         });
-        
-
     }
 }
 
