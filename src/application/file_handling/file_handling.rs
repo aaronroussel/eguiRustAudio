@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::io;
 
 #[derive(Clone)]
-pub struct music_file {
+pub struct MusicFile {
     pub name: String,
     pub file_path: PathBuf,
     pub title: String,
@@ -13,8 +13,8 @@ pub struct music_file {
     pub album: String,
 }
 
-pub fn get_library() -> Result<Vec<music_file>, io::Error> {
-    let mut music_files: Vec<music_file> = Vec::new();
+pub fn get_library() -> Result<Vec<MusicFile>, io::Error> {
+    let mut music_files: Vec<MusicFile> = Vec::new();
     
 
 // THIS FOLDER MUST ONLY CONTAIN MUSIC FILES OR SHIT WILL BREAK!!!
@@ -46,7 +46,7 @@ pub fn get_library() -> Result<Vec<music_file>, io::Error> {
         let song_duration = tag.duration().unwrap_or_default();
         let song_album = tag.album_title().map(|s| s.to_string()).unwrap_or_default();
 
-        let music = music_file {
+        let music = MusicFile {
             name: dir_entry
                 .path()
                 .file_name()
@@ -66,9 +66,9 @@ pub fn get_library() -> Result<Vec<music_file>, io::Error> {
     Ok(music_files)
 }
 
-pub fn get_from_path(path_string: &str) -> Vec<music_file> {
+pub fn get_from_path(path_string: &str) -> Vec<MusicFile> {
     
-    let mut music_files: Vec<music_file> = Vec::new();
+    let mut music_files: Vec<MusicFile> = Vec::new();
     
     let paths = fs::read_dir(path_string).unwrap();
     
@@ -82,7 +82,7 @@ pub fn get_from_path(path_string: &str) -> Vec<music_file> {
         let song_duration = tag.duration().unwrap_or_default(); 
         let song_album = tag.album_title().map(|s| s.to_string()).unwrap_or_default();
         
-        let music = music_file {
+        let music = MusicFile {
             name: dir_entry.path().file_name().unwrap().to_string_lossy().to_string(),
             file_path: dir_entry.path().clone(),
             title: song_title,
@@ -102,10 +102,10 @@ pub fn get_from_path(path_string: &str) -> Vec<music_file> {
 #[derive(Clone)]
 pub struct MusicCollection {
     pub name: String,
-    pub collection: Vec<music_file>,
+    pub collection: Vec<MusicFile>,
     pub song_count: i32,
 }
 
 impl MusicCollection {
-    
+
 }

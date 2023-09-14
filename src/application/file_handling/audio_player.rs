@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::*;
 
-use rodio::{Decoder, OutputStream, source::Source, Sink};
+use rodio::{Decoder, OutputStream, Sink};
 
 pub struct AudioHandler {
     pub sink: Sink,

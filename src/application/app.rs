@@ -1,6 +1,6 @@
 
 use super::file_handling::file_handling::*;
-use super::file_handling::AudioPlayer::*;
+use super::file_handling::audio_player::*;
 
 use egui_modal;
 use egui::*;
@@ -8,7 +8,7 @@ use egui::Color32;
 
 
 pub struct TemplateApp {
-    music_library: Vec<music_file>,
+    music_library: Vec<MusicFile>,
     audio_player: AudioHandler,
     seek: f32,
     fp: String, // Sender to send filepath to audio handler thread
@@ -29,7 +29,7 @@ impl Default for TemplateApp {
 
 impl TemplateApp {
     /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         
         Default::default()
