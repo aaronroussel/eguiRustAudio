@@ -1,6 +1,6 @@
 
 use super::file_handling::file_handling::*;
-use super::file_handling::AudioPlayer::*;
+use super::file_handling::audio_player::*;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::path::Path;
@@ -13,7 +13,7 @@ use egui::WidgetType::ComboBox;
 
 
 pub struct TemplateApp {
-    music_library: Vec<music_file>,
+    music_library: Vec<MusicFile>,
     audio_player: AudioHandler,
     seek: f32,
     fp: String,
@@ -28,7 +28,7 @@ impl Default for TemplateApp {
 
 
         Self {
-            music_library: get_library(),
+            music_library: get_library().unwrap(),
             audio_player: AudioHandler::new(),
             seek: 1.0,
             fp: "".to_owned(),
