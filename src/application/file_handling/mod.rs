@@ -1,2 +1,2 @@
 pub mod file_handling;
-pub mod AudioPlayer;
+pub mod audio_player;

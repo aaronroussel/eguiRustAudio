@@ -1,6 +1,6 @@
 
 use super::file_handling::file_handling::*;
-use super::file_handling::AudioPlayer::*;
+use super::file_handling::audio_player::*;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::path::Path;
@@ -13,7 +13,7 @@ use egui::WidgetType::ComboBox;
 
 
 pub struct TemplateApp {
-    music_library: Vec<music_file>,
+    music_library: Vec<MusicFile>,
     audio_player: AudioHandler,
     seek: f32,
     fp: String,
@@ -28,7 +28,7 @@ impl Default for TemplateApp {
 
 
         Self {
-            music_library: get_library(),
+            music_library: get_library().unwrap(),
             audio_player: AudioHandler::new(),
             seek: 1.0,
             fp: "".to_owned(),
@@ -104,7 +104,12 @@ impl eframe::App for TemplateApp {
                     if ui.button("Create new Playlist").clicked() {
                         
                     }
-                })   
+                });
+                ui.menu_button("View",|ui| {
+                    if ui.button("Visualizer").clicked() {
+                        self.visualizer_active = true;
+                    }
+                });
             });
             ui.style_mut().spacing.slider_width = 100.0;
             ui.vertical_centered(|ui| {
@@ -140,10 +145,6 @@ impl eframe::App for TemplateApp {
                     .fill(Color32::GRAY)
                     .desired_width(400.0)
                     );
-
-                if ui.button("Viz").clicked() {
-                    self.visualizer_active = true
-                }
             })   
         });
         
@@ -165,12 +166,14 @@ impl eframe::App for TemplateApp {
                 if ui.button("EXIT").clicked() {
                     self.visualizer_active =  false
                 }
-                if ui.button(if self.visualizer_effect_lines {"LINES OFF"} else {"LINES ON"}).clicked() {
-                    if self.visualizer_effect_lines {
-                        self.visualizer_effect_lines = false
-                    }
-                    else {
-                        self.visualizer_effect_lines = true
+
+                if self.visualizer_style == 1 {
+                    if ui.button(if self.visualizer_effect_lines { "LINES OFF" } else { "LINES ON" }).clicked() {
+                        if self.visualizer_effect_lines {
+                            self.visualizer_effect_lines = false
+                        } else {
+                            self.visualizer_effect_lines = true
+                        }
                     }
                 }
 
@@ -178,13 +181,16 @@ impl eframe::App for TemplateApp {
                 let selected_style = if self.visualizer_style == 0 {
                     "Waveform"
                 }
-                else {
+                else if self.visualizer_style == 1 {
                     "Lissajous"
+                }
+                else {
+                    "Stereo Spread"
                 };
 
                 // Declare the available options for the combo box
                 let buffer_options = ["128","256", "512", "1024", "2048"];
-                let style_options = ["Waveform", "Lissajous"];
+                let style_options = ["Waveform", "Lissajous", "Stereo Spread"];
 
 
                 egui::ComboBox::from_label("BUFFER SIZE")
@@ -203,6 +209,7 @@ impl eframe::App for TemplateApp {
                             let is_selected = match option1 {
                                 "Waveform" => self.visualizer_style == 0,
                                 "Lissajous" => self.visualizer_style == 1,
+                                "Stereo Spread" => self.visualizer_style == 2,
                                 _ => false,
                             };
 
@@ -211,6 +218,9 @@ impl eframe::App for TemplateApp {
                                     self.visualizer_style = 0;
                                 } else if option1 == "Lissajous" {
                                     self.visualizer_style = 1;
+                                }
+                                else if option1 == "Stereo Spread" {
+                                    self.visualizer_style = 2;
                                 }
                             }
                         }
@@ -225,6 +235,27 @@ impl eframe::App for TemplateApp {
                     let idx = self.audio_player.sample_index.load(Ordering::Relaxed);
                     let desired_size = ui.available_width() * vec2(0.99, 0.6);
                     let (_id, rect) = ui.allocate_space(desired_size);
+
+                    let origin = rect.center();
+
+// Set the start and end points for the horizontal and vertical lines to the edges of the drawing area
+                    let x_axis = [
+                        pos2(rect.left(), origin.y),
+                        pos2(rect.right(), origin.y),
+                    ];
+                    let y_axis = [
+                        pos2(origin.x, rect.top()),
+                        pos2(origin.x, rect.bottom()),
+                    ];
+
+                    let origin_color = Color32::WHITE;  // or any other color you prefer for the origin
+
+// Convert these lines into shapes and add them to the shapes vector
+                    let mut origin_paint = vec![
+                        epaint::Shape::line(x_axis.to_vec(), Stroke::new(0.5, origin_color)),
+                        epaint::Shape::line(y_axis.to_vec(), Stroke::new(0.5, origin_color)),
+                    ];
+
 
                     let mut shapes = vec![];
                     let n = self.buffer_size;  // visualize the last 500 pairs of samples.
@@ -278,7 +309,8 @@ impl eframe::App for TemplateApp {
                             let point_y = rect.center().y - y_sample * rect.height() / 2.0;
 
                             let point = pos2(point_x, point_y);
-                            shapes.push(epaint::Shape::circle_filled(point, 1.0, color));
+                            shapes.push(epaint::Shape::circle_filled(point, 2.0, color));
+
 
                             if self.visualizer_effect_lines {
                                 if i > 1 {
@@ -298,7 +330,35 @@ impl eframe::App for TemplateApp {
                             }
                         }
                     }
+
+                    if self.visualizer_style == 2 {
+                        let samples_to_visualize = &self.audio_player.samples_for_viz[idx.saturating_sub(samples_to_fetch)..=idx];
+                        let angle_rad = 45.0f32.to_radians();  // 45 degrees in radians
+
+                        for i in (0..samples_to_visualize.len()).step_by(2) {
+                            if i + 1 >= samples_to_visualize.len() {
+                                break;
+                            }
+
+                            let mut x_sample = samples_to_visualize[i].abs();  // Convert negative to positive
+                            let mut y_sample = samples_to_visualize[i + 1].abs();  // Convert negative to positive
+
+                            // Apply rotation transformation
+                            let rotated_x = x_sample * angle_rad.cos() - y_sample * angle_rad.sin();
+                            let rotated_y = x_sample * angle_rad.sin() + y_sample * angle_rad.cos();
+
+                            let point_x = rect.center().x + rotated_x * rect.width() / -2.0;
+                            let point_y = (rect.max.y + rotated_y * rect.height() / -2.0 );
+
+                            let point = pos2(point_x, point_y);
+                            shapes.push(epaint::Shape::circle_filled(point, 0.7, color));
+
+                        }
+                    }
                     ui.painter().extend(shapes);
+                    if self.visualizer_style == 1 {
+                        ui.painter().extend(origin_paint)
+                    }
                 }
 
 
