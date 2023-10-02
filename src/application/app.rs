@@ -17,10 +17,7 @@ pub struct TemplateApp {
     audio_player: AudioHandler,
     seek: f32,
     fp: String,
-    visualizer_active: bool,
-    visualizer_effect_lines: bool,
-    visualizer_style: i8,
-    buffer_size: usize,
+    visualizer_parameters: VisualizerParameters,
 }
 
 impl Default for TemplateApp {
@@ -32,10 +29,7 @@ impl Default for TemplateApp {
             audio_player: AudioHandler::new(),
             seek: 1.0,
             fp: "".to_owned(),
-            visualizer_active: false,
-            visualizer_effect_lines: true,
-            visualizer_style: 0,
-            buffer_size: 512,
+            visualizer_parameters: VisualizerParameters::new(),
         }
     }
 }
@@ -107,7 +101,7 @@ impl eframe::App for TemplateApp {
                 });
                 ui.menu_button("View",|ui| {
                     if ui.button("Visualizer").clicked() {
-                        self.visualizer_active = true;
+                        self.visualizer_parameters.is_active = true;
                     }
                 });
             });
@@ -142,8 +136,8 @@ impl eframe::App for TemplateApp {
                 let usize_val = self.audio_player.sample_index.load(Ordering::Relaxed);
 
                 ui.add(ProgressBar::new(usize_val as f32 / self.audio_player.samples_for_viz.len() as f32 )
-                    .fill(Color32::GRAY)
-                    .desired_width(400.0)
+                    .fill(Color32::LIGHT_BLUE)
+                    .desired_width(300.0)
                     );
             })   
         });
@@ -161,27 +155,27 @@ impl eframe::App for TemplateApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            if self.visualizer_active {
+            if self.visualizer_parameters.is_active {
 
                 if ui.button("EXIT").clicked() {
-                    self.visualizer_active =  false
+                    self.visualizer_parameters.is_active =  false
                 }
 
-                if self.visualizer_style == 1 {
-                    if ui.button(if self.visualizer_effect_lines { "LINES OFF" } else { "LINES ON" }).clicked() {
-                        if self.visualizer_effect_lines {
-                            self.visualizer_effect_lines = false
+                if self.visualizer_parameters.style == 1 {
+                    if ui.button(if self.visualizer_parameters.lines_active { "LINES OFF" } else { "LINES ON" }).clicked() {
+                        if self.visualizer_parameters.lines_active {
+                            self.visualizer_parameters.lines_active = false
                         } else {
-                            self.visualizer_effect_lines = true
+                            self.visualizer_parameters.lines_active = true
                         }
                     }
                 }
 
-                let selected_size = format!("{}", self.buffer_size);
-                let selected_style = if self.visualizer_style == 0 {
+                let selected_size = format!("{}", self.visualizer_parameters.buffer_size);
+                let selected_style = if self.visualizer_parameters.style == 0 {
                     "Waveform"
                 }
-                else if self.visualizer_style == 1 {
+                else if self.visualizer_parameters.style == 1 {
                     "Lissajous"
                 }
                 else {
@@ -197,8 +191,8 @@ impl eframe::App for TemplateApp {
                     .selected_text(&selected_size)
                     .show_ui(ui, |ui| {
                         for &option in buffer_options.iter() {
-                            if ui.selectable_label(self.buffer_size == option.parse::<usize>().unwrap(), option).clicked() {
-                                self.buffer_size = option.parse::<usize>().unwrap();
+                            if ui.selectable_label(self.visualizer_parameters.buffer_size == option.parse::<usize>().unwrap(), option).clicked() {
+                                self.visualizer_parameters.buffer_size = option.parse::<usize>().unwrap();
                             }
                         }
                     });
@@ -207,20 +201,20 @@ impl eframe::App for TemplateApp {
                     .show_ui(ui, |ui| {
                         for &option1 in style_options.iter() {
                             let is_selected = match option1 {
-                                "Waveform" => self.visualizer_style == 0,
-                                "Lissajous" => self.visualizer_style == 1,
-                                "Stereo Spread" => self.visualizer_style == 2,
+                                "Waveform" => self.visualizer_parameters.style == 0,
+                                "Lissajous" => self.visualizer_parameters.style == 1,
+                                "Stereo Spread" => self.visualizer_parameters.style == 2,
                                 _ => false,
                             };
 
                             if ui.selectable_label(is_selected, option1).clicked() {
                                 if option1 == "Waveform" {
-                                    self.visualizer_style = 0;
+                                    self.visualizer_parameters.style = 0;
                                 } else if option1 == "Lissajous" {
-                                    self.visualizer_style = 1;
+                                    self.visualizer_parameters.style = 1;
                                 }
                                 else if option1 == "Stereo Spread" {
-                                    self.visualizer_style = 2;
+                                    self.visualizer_parameters.style = 2;
                                 }
                             }
                         }
@@ -258,10 +252,10 @@ impl eframe::App for TemplateApp {
 
 
                     let mut shapes = vec![];
-                    let n = self.buffer_size;  // visualize the last 500 pairs of samples.
+                    let n = self.visualizer_parameters.buffer_size;  // visualize the last 500 pairs of samples.
                     let samples_to_fetch = n;
 
-                    if self.visualizer_style == 0 {
+                    if self.visualizer_parameters.style == 0 {
 
                         let samples_to_visualize = &self.audio_player.samples_for_viz[idx.saturating_sub(2 * n)..=idx];
                         let middle_x = rect.center().x;
@@ -294,7 +288,7 @@ impl eframe::App for TemplateApp {
                         }
                     }
 
-                    if self.visualizer_style == 1 {
+                    if self.visualizer_parameters.style == 1 {
                     // We'll use a step of 2 since each point needs two samples.
                         let samples_to_visualize = &self.audio_player.samples_for_viz[idx.saturating_sub(samples_to_fetch)..=idx];
                         for i in (0..samples_to_visualize.len()).step_by(2) {
@@ -312,7 +306,7 @@ impl eframe::App for TemplateApp {
                             shapes.push(epaint::Shape::circle_filled(point, 2.0, color));
 
 
-                            if self.visualizer_effect_lines {
+                            if self.visualizer_parameters.lines_active {
                                 if i > 1 {
                                     let prev_x_sample = samples_to_visualize[i - 2];
                                     let prev_y_sample = samples_to_visualize[i - 1];
@@ -331,7 +325,7 @@ impl eframe::App for TemplateApp {
                         }
                     }
 
-                    if self.visualizer_style == 2 {
+                    if self.visualizer_parameters.style == 2 {
                         let samples_to_visualize = &self.audio_player.samples_for_viz[idx.saturating_sub(samples_to_fetch)..=idx];
                         let angle_rad = 45.0f32.to_radians();  // 45 degrees in radians
 
@@ -356,7 +350,7 @@ impl eframe::App for TemplateApp {
                         }
                     }
                     ui.painter().extend(shapes);
-                    if self.visualizer_style == 1 {
+                    if self.visualizer_parameters.style == 1 {
                         ui.painter().extend(origin_paint)
                     }
                 }
@@ -403,3 +397,22 @@ impl eframe::App for TemplateApp {
     }
 }
 
+pub struct VisualizerParameters {
+    pub is_active: bool,
+    pub lines_active: bool,
+    pub style: i8,
+    pub buffer_size: usize,
+    pub playback_speed: f32,
+}
+
+impl VisualizerParameters {
+    fn new() -> VisualizerParameters {
+        VisualizerParameters {
+            is_active: false,
+            lines_active: false,
+            style: 0,
+            buffer_size: 512,
+            playback_speed: 1.0,
+        }
+    }
+}
