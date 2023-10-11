@@ -19,6 +19,7 @@ eframe = { version = "0.22.0", default-features = false, features = [
     "persistence",   # Enable restoring app state when restarting the app.
 ] }
 log = "0.4"
+realfft = "3.3.0"
 
 
 # You only need serde if you want app persistence:
