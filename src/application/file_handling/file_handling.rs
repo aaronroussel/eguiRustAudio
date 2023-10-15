@@ -109,15 +109,22 @@ pub struct MusicCollection {
     pub name: String,
     pub collection: Vec<MusicFile>,
     pub song_count: i32,
+    pub index: i32,
 }
 
 impl MusicCollection {
-    pub fn new(s: String) -> MusicCollection {
+    pub fn new(s: String, i: i32) -> MusicCollection {
         let collection = MusicCollection {
             name: s,
             collection: Vec::new(),
-            song_count: 0
+            song_count: 0,
+            index: i
         };
         collection
+    }
+
+    pub fn add_song(&mut self, music_file: MusicFile) {
+        self.collection.push(music_file);
+        self.song_count += 1;
     }
 }

@@ -20,7 +20,9 @@ pub struct TemplateApp {
     visualizer_parameters: VisualizerParameters,
     song_queue: VecDeque<MusicFile>,
     playlists: Vec<MusicCollection>,
-    current_collection: Option<Vec<MusicFile>>,
+    current_collection: Vec<MusicFile>,
+    current_song: String,
+    playlist_state: usize,
 }
 
 impl Default for TemplateApp {
@@ -35,7 +37,9 @@ impl Default for TemplateApp {
             visualizer_parameters: VisualizerParameters::new(),
             song_queue: VecDeque::new(),
             playlists: Vec::new(),
-            current_collection: None
+            current_collection: Vec::new(),
+            current_song: String::new(),
+            playlist_state: 0,
         }
     }
 }
@@ -53,9 +57,6 @@ impl TemplateApp {
 impl eframe::App for TemplateApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 
-        if self.current_collection.is_none() {
-            self.current_collection = Some(self.music_library.clone())
-        }
 
         if self.audio_player.sink.empty() {
             if !self.song_queue.is_empty() {
@@ -85,7 +86,7 @@ impl eframe::App for TemplateApp {
                 }
             });
             filepath_modal.buttons(ui, |ui| {
-                if filepath_modal.button(ui, "close").clicked() {
+                if filepath_modal.button(ui, "Add to Library").clicked() {
                     let new_music_files = get_from_path(&self.fp);
                     for x in new_music_files {
                         self.music_library.push(x);
@@ -109,14 +110,14 @@ impl eframe::App for TemplateApp {
             });
             playlist_modal.buttons(ui, |ui| {
                 if playlist_modal.button(ui, "Create").clicked() {
-                    let playlist = MusicCollection::new(String::from(&self.fp));
+                    let playlist = MusicCollection::new(String::from(&self.fp), self.playlists.len() as i32);
                     self.playlists.push(playlist);
                     playlist_modal.close();
                     self.fp = "".to_owned();
                 }
             })
         });
-        
+
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui|{
                 ui.menu_button("File", |ui|{
@@ -153,28 +154,48 @@ impl eframe::App for TemplateApp {
                             self.audio_player.load_file(&song.file_path);
                         }
                         // nothing
-                    }   
+                    }
                 }
                 else {
-                    if self.audio_player.sink.is_paused() {
-                        if ui.button("PLAY").clicked() {
-                            self.audio_player.resume_playback();
+                    ui.vertical_centered(|ui| {
+                        if self.audio_player.sink.is_paused() {
+                            if ui.button("PLAY").clicked() {
+                                self.audio_player.resume_playback();
+                            }
+                        } else {
+                            if ui.button("PAUSE").clicked() {
+                                self.audio_player.pause_playback();
+                            }
                         }
-                    }
-                    else {
-                        if ui.button("PAUSE").clicked() {
-                            self.audio_player.pause_playback();
+                        if !self.song_queue.is_empty() {
+                            if ui.button("Next").clicked() {
+                                self.audio_player.stop_playback();
+
+                                // Check if there are songs in the queue
+                                if let Some(next_song) = self.song_queue.pop_front() {
+                                    // Load and play the next song
+                                    self.audio_player.load_file(next_song.file_path.as_path());
+                                    // Add this line
+                                }
+                            }
                         }
-                    }
+                    });
                 }
-                
-                if ui.add(Slider::new(&mut self.seek, 0.0..=1.0)
-                    .text("Volume")
-                    .show_value(false)
-                    .trailing_fill(true))
-                    .dragged(){
-                        self.audio_player.sink.set_volume(self.seek);
-                    };
+
+                if ui.add(
+                        Slider::new(&mut self.seek, 0.0..=1.0)
+                            .text("Volume")
+                            .show_value(false)
+                            .trailing_fill(true),
+                    )
+                    .dragged()
+                {
+                    self.audio_player.sink.set_volume(self.seek);
+                };
+
+                if !self.audio_player.sink.empty() {
+                    ui.label(format!("Now playing: {}", self.current_song));
+                }
 
                 let usize_val = self.audio_player.sample_index.load(Ordering::Relaxed);
 
@@ -201,16 +222,22 @@ impl eframe::App for TemplateApp {
                 ));
 
                 ui.painter().extend(shapes);
-            })   
+            })
         });
         
         egui::SidePanel::left("left panel").exact_width(200.0).show(ctx, |ui| {
             ui.label("Library");
             
             egui::CollapsingHeader::new("Playlists").open(Some(true)).show(ui, |ui|{
+                let mut i: usize = 1;
                 for x in &self.playlists {
                    if ui.add(Label::new(&x.name).sense(Sense::click())).clicked() {
-
+                       if x.index == 1 {
+                           self.playlist_state = 1
+                       }
+                       else {
+                           self.playlist_state = (x.index - 1) as usize
+                       }
                    }
                 }
             });
@@ -454,7 +481,7 @@ impl eframe::App for TemplateApp {
                             let rotated_y = x_sample * angle_rad.sin() + y_sample * angle_rad.cos();
 
                             let point_x = rect.center().x + rotated_x * rect.width() / -2.0;
-                            let point_y = (rect.max.y + rotated_y * rect.height() / -2.0 );
+                            let point_y = (rect.max.y + rotated_y * rect.height() / -2.0 ) - 75.0;
 
                             let point = pos2(point_x, point_y);
                             shapes.push(epaint::Shape::circle_filled(point, 0.7, color));
@@ -583,47 +610,177 @@ impl eframe::App for TemplateApp {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     egui::Grid::new("some_unique_id")
                         .striped(true)
-                        .max_col_width(200.0)
-                        .min_col_width(200.0)
+                        .max_col_width(300.0)
+                        .min_col_width(300.0)
                         .show(ui, |ui| {
                             ui.label("Title:");
                             ui.label("Artist:");
                             ui.label("Album:");
                             ui.label("Duration:");
                             ui.end_row();
-                            for z in &self.music_library {
-                                if &z.title == "" {
-                                    // let title_label = Label::new(&z.name);
-                                    let response = ui.add(Label::new(&z.name).sense(Sense::click()));
-                                       response.context_menu(|ui| {
-                                           if ui.button("Play File").clicked() {
-                                               self.audio_player.stop_playback();
-                                               println!("double click executed");
-                                               let file_path = &z.file_path;
-                                               self.audio_player.load_file(file_path.as_path());
-                                               //ui.close_menu();
-                                           }
-                                           if ui.button("Add to Queue").clicked() {
-                                               self.song_queue.push_back(z.clone());
-                                           }
-                                           if ui.button("Add to beginning of Queue").clicked() {
-                                               self.song_queue.push_front(z.clone());
-                                           }
-                                           if ui.button("Close Menu").clicked() {
-                                               ui.close_menu();
-                                           }
-                                       });
-                                }
-                                else {
-                                    //let title_label = Label::new(&z.title);
-                                    let response = ui.add(Label::new(&z.title).sense(Sense::click()));
+                            if self.playlist_state == 0 {
+                                for z in &self.music_library {
+
+                                    let playlistadd_modal = egui_modal::Modal::new(ctx, "playlist_add modal")
+                                        .with_close_on_outside_click(true);
+                                    playlistadd_modal.show(|ui| {
+                                        playlistadd_modal.title(ui, "Select Playlist");
+
+                                        playlistadd_modal.frame(ui, |ui|{
+                                            for mut x in self.playlists.clone() {
+                                                if ui.add(Label::new(&x.name).sense(Sense::click())).clicked() {
+                                                    &x.add_song(z.clone());
+                                                    playlistadd_modal.close();
+                                                }
+                                            }
+                                        });
+                                        playlistadd_modal.buttons(ui, |ui| {
+                                            if playlistadd_modal.button(ui, "close").clicked() {
+                                                playlistadd_modal.close();
+                                            }
+                                        });
+                                    });
+
+                                    if &z.title == "" {
+                                        let response =
+                                            ui.add(Label::new(&z.name).sense(Sense::click()));
+
+                                        if response.double_clicked() {
+                                            self.audio_player.stop_playback();
+                                            println!("double click executed456");
+                                            let file_path = &z.file_path;
+                                            self.audio_player.load_file(file_path.as_path());
+                                            self.current_song = String::from(&z.name);
+                                            print!("abcc, {}", self.current_song);
+                                        }
+
                                         response.context_menu(|ui| {
                                             if ui.button("Play File").clicked() {
                                                 self.audio_player.stop_playback();
-                                                println!("double click executed");
+                                                println!("double click executed456");
                                                 let file_path = &z.file_path;
                                                 self.audio_player.load_file(file_path.as_path());
-                                                //ui.close_menu();
+                                                ui.close_menu();
+                                                self.current_song = String::from(&z.name);
+                                                print!("abcc, {}", self.current_song);
+                                            }
+
+                                            if ui.button("Add to Playlist").clicked() {
+                                                playlistadd_modal.open();
+                                            }
+
+                                            if ui.button("Add to Queue").clicked() {
+                                                self.song_queue.push_back(z.clone());
+                                                ui.close_menu();
+                                            }
+
+                                            if ui.button("Add to beginning of Queue").clicked() {
+                                                self.song_queue.push_front(z.clone());
+                                                ui.close_menu();
+                                            }
+                                            if ui.button("Close Menu").clicked() {
+                                                ui.close_menu();
+                                            }
+                                        });
+                                    }
+                                    else {
+                                        let response =
+                                            ui.add(Label::new(&z.title).sense(Sense::click()));
+
+                                        if response.double_clicked() {
+                                            self.audio_player.stop_playback();
+                                            println!("double click executed456");
+                                            let file_path = &z.file_path;
+                                            self.audio_player.load_file(file_path.as_path());
+                                            self.current_song = String::from(&z.title);
+                                            print!("abcc, {}", self.current_song);
+                                        }
+
+                                        response.context_menu(|ui| {
+                                            if ui.button("Play File").clicked() {
+                                                self.audio_player.stop_playback();
+                                                println!("double click executed123");
+                                                let file_path = &z.file_path;
+                                                self.audio_player.load_file(file_path.as_path());
+                                                self.current_song = String::from(&z.title);
+                                            }
+                                            if ui.button("Add to Playlist").clicked() {
+                                                playlistadd_modal.open();
+                                            }
+
+                                            if ui.button("Add to Queue").clicked() {
+                                                self.song_queue.push_back(z.clone());
+                                            }
+                                            if ui.button("Add to beginning of Queue").clicked() {
+                                                self.song_queue.push_front(z.clone());
+                                            }
+                                        });
+                                    }
+                                    ui.label(&z.artist);
+                                    ui.label(&z.album);
+                                    ui.label(&z.duration.to_string());
+                                    ui.end_row();
+                                }
+                            }
+                            else {
+                                let playlist = &self.playlists[self.playlist_state - 1];
+                                for z in &playlist.collection {
+                                    if &z.title == "" {
+                                        let response =
+                                            ui.add(Label::new(&z.name).sense(Sense::click()));
+
+                                        if response.double_clicked() {
+                                            self.audio_player.stop_playback();
+                                            println!("double click executed456");
+                                            let file_path = &z.file_path;
+                                            self.audio_player.load_file(file_path.as_path());
+                                            self.current_song = String::from(&z.name);
+                                            print!("abcc, {}", self.current_song);
+                                        }
+
+                                        response.context_menu(|ui| {
+                                            if ui.button("Play File").clicked() {
+                                                self.audio_player.stop_playback();
+                                                println!("double click executed456");
+                                                let file_path = &z.file_path;
+                                                self.audio_player.load_file(file_path.as_path());
+                                                ui.close_menu();
+                                                self.current_song = String::from(&z.name);
+                                                print!("abcc, {}", self.current_song);
+                                            }
+                                            if ui.button("Add to Queue").clicked() {
+                                                self.song_queue.push_back(z.clone());
+                                                ui.close_menu();
+                                            }
+
+                                            if ui.button("Add to beginning of Queue").clicked() {
+                                                self.song_queue.push_front(z.clone());
+                                                ui.close_menu();
+                                            }
+                                            if ui.button("Close Menu").clicked() {
+                                                ui.close_menu();
+                                            }
+                                        });
+                                    } else {
+                                        let response =
+                                            ui.add(Label::new(&z.title).sense(Sense::click()));
+
+                                        if response.double_clicked() {
+                                            self.audio_player.stop_playback();
+                                            println!("double click executed456");
+                                            let file_path = &z.file_path;
+                                            self.audio_player.load_file(file_path.as_path());
+                                            self.current_song = String::from(&z.title);
+                                            print!("abcc, {}", self.current_song);
+                                        }
+
+                                        response.context_menu(|ui| {
+                                            if ui.button("Play File").clicked() {
+                                                self.audio_player.stop_playback();
+                                                println!("double click executed123");
+                                                let file_path = &z.file_path;
+                                                self.audio_player.load_file(file_path.as_path());
+                                                self.current_song = String::from(&z.title);
                                             }
                                             if ui.button("Add to Queue").clicked() {
                                                 self.song_queue.push_back(z.clone());
@@ -632,12 +789,12 @@ impl eframe::App for TemplateApp {
                                                 self.song_queue.push_front(z.clone());
                                             }
                                         });
-
+                                    }
+                                    ui.label(&z.artist);
+                                    ui.label(&z.album);
+                                    ui.label(&z.duration.to_string());
+                                    ui.end_row();
                                 }
-                                ui.label(&z.artist);
-                                ui.label(&z.album);
-                                ui.label(&z.duration.to_string());
-                                ui.end_row();
                             }
                         });
                 });
