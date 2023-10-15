@@ -204,7 +204,7 @@ impl eframe::App for TemplateApp {
             })   
         });
         
-        egui::SidePanel::left("left panel").show(ctx, |ui| {
+        egui::SidePanel::left("left panel").exact_width(200.0).show(ctx, |ui| {
             ui.label("Library");
             
             egui::CollapsingHeader::new("Playlists").open(Some(true)).show(ui, |ui|{
