@@ -19,6 +19,8 @@ pub struct TemplateApp {
     fp: String,
     visualizer_parameters: VisualizerParameters,
     song_queue: VecDeque<MusicFile>,
+    playlists: Vec<MusicCollection>,
+    current_collection: Option<Vec<MusicFile>>,
 }
 
 impl Default for TemplateApp {
@@ -26,12 +28,14 @@ impl Default for TemplateApp {
 
 
         Self {
-            music_library: get_library().unwrap(),
+            music_library: new_library(),
             audio_player: AudioHandler::new(),
             seek: 1.0,
             fp: "".to_owned(),
             visualizer_parameters: VisualizerParameters::new(),
             song_queue: VecDeque::new(),
+            playlists: Vec::new(),
+            current_collection: None
         }
     }
 }
@@ -49,6 +53,10 @@ impl TemplateApp {
 impl eframe::App for TemplateApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 
+        if self.current_collection.is_none() {
+            self.current_collection = Some(self.music_library.clone())
+        }
+
         if self.audio_player.sink.empty() {
             if !self.song_queue.is_empty() {
                 let song: MusicFile = self.song_queue.pop_front().unwrap();
@@ -63,7 +71,7 @@ impl eframe::App for TemplateApp {
         ctx.set_visuals(egui::Visuals::dark());
 
         let filepath_modal = egui_modal::Modal::new(ctx, "filepath modal")
-        .with_close_on_outside_click(true);
+            .with_close_on_outside_click(true);
         filepath_modal.show(|ui| {
             filepath_modal.title(ui, "Enter File Path");
 
@@ -87,6 +95,27 @@ impl eframe::App for TemplateApp {
                 }        
             });
         });
+
+        let playlist_modal = egui_modal::Modal::new(ctx, "playlist modal")
+            .with_close_on_outside_click(true);
+        playlist_modal.show(|ui| {
+            playlist_modal.title(ui, "Create Playlist");
+            playlist_modal.frame(ui, |ui| {
+                let playlist_name = ui.add(TextEdit::singleline(&mut self.fp)
+                    .hint_text("Enter Playlist Name"));
+                if playlist_name.changed(){
+
+                }
+            });
+            playlist_modal.buttons(ui, |ui| {
+                if playlist_modal.button(ui, "Create").clicked() {
+                    let playlist = MusicCollection::new(String::from(&self.fp));
+                    self.playlists.push(playlist);
+                    playlist_modal.close();
+                    self.fp = "".to_owned();
+                }
+            })
+        });
         
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui|{
@@ -95,12 +124,12 @@ impl eframe::App for TemplateApp {
                         filepath_modal.open()
                     }
                     if ui.button("Add music folder").clicked() {
-                        // do stuff here
+                       filepath_modal.open()
                     }
                 });
                 ui.menu_button("Edit", |ui| {
                     if ui.button("Create new Playlist").clicked() {
-                        
+                        playlist_modal.open()
                     }
                 });
                 ui.menu_button("View",|ui| {
@@ -149,12 +178,6 @@ impl eframe::App for TemplateApp {
 
                 let usize_val = self.audio_player.sample_index.load(Ordering::Relaxed);
 
-                //ui.add(ProgressBar::new(usize_val as f32 / self.audio_player.samples_for_viz.len() as f32 )
-                //    .fill(Color32::LIGHT_BLUE)
-               //     .desired_width(300.0)
-                //    );
-
-
 
                 let desired_size = ui.available_width() * vec2(0.2, 0.05);
                 let (_id, rect) = ui.allocate_space(desired_size);
@@ -185,7 +208,11 @@ impl eframe::App for TemplateApp {
             ui.label("Library");
             
             egui::CollapsingHeader::new("Playlists").open(Some(true)).show(ui, |ui|{
-                ui.label("Playlist 1");
+                for x in &self.playlists {
+                   if ui.add(Label::new(&x.name).sense(Sense::click())).clicked() {
+
+                   }
+                }
             });
         });
 
@@ -307,7 +334,7 @@ impl eframe::App for TemplateApp {
 
                     let origin = rect.center();
 
-// Set the start and end points for the horizontal and vertical lines to the edges of the drawing area
+                    // Set the start and end points for the horizontal and vertical lines to the edges of the drawing area
                     let x_axis = [
                         pos2(rect.left(), origin.y),
                         pos2(rect.right(), origin.y),
@@ -319,7 +346,7 @@ impl eframe::App for TemplateApp {
 
                     let origin_color = Color32::WHITE;  // or any other color you prefer for the origin
 
-// Convert these lines into shapes and add them to the shapes vector
+                    // Convert these lines into shapes and add them to the shapes vector
                     let mut origin_paint = vec![
                         epaint::Shape::line(x_axis.to_vec(), Stroke::new(0.5, origin_color)),
                         epaint::Shape::line(y_axis.to_vec(), Stroke::new(0.5, origin_color)),
@@ -486,13 +513,13 @@ impl eframe::App for TemplateApp {
                                 return;
                             }
 
-// Compute the amplitude spectrum (magnitudes of the complex numbers)
+
                             let amplitude_spectrum: Vec<f32> = outdata.iter().map(|c| c.norm()).collect();
 
-// ... [Rest of your code to visualize the amplitude_spectrum]
+
 
                             let start_x = rect.center().x - 200.0;
-                            let start_y = rect.center().y + 20.0;// Start drawing from this x-coordinate to center the visualization.
+                            let start_y = rect.center().y + 20.0;
 
 
                             for mut i in 1..amplitude_spectrum.len() {
@@ -586,23 +613,6 @@ impl eframe::App for TemplateApp {
                                                ui.close_menu();
                                            }
                                        });
-
-
-                                    /*
-                                    if ui.add(Label::new(&z.name).sense(Sense::click())).double_clicked() {
-                                        self.audio_player.stop_playback();
-                                        println!("double click executed");
-                                        let file_path = &z.file_path;
-                                        self.audio_player.load_file(file_path.as_path());
-                                    }
-                                } else {
-                                    if ui.add(Label::new(&z.title).sense(Sense::click())).double_clicked() {
-                                        self.audio_player.stop_playback();
-                                        println!("double click executed");
-                                        let file_path = &z.file_path;
-                                        self.audio_player.load_file(file_path.as_path());
-                                    }
-                                     */
                                 }
                                 else {
                                     //let title_label = Label::new(&z.title);

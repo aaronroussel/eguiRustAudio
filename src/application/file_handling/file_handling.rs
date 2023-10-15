@@ -98,6 +98,11 @@ pub fn get_from_path(path_string: &str) -> Vec<MusicFile> {
     music_files
 }
 
+pub fn new_library() -> Vec<MusicFile> {
+    let library: Vec<MusicFile> = Vec::new();
+    library
+}
+
 
 #[derive(Clone)]
 pub struct MusicCollection {
@@ -107,5 +112,12 @@ pub struct MusicCollection {
 }
 
 impl MusicCollection {
-
+    pub fn new(s: String) -> MusicCollection {
+        let collection = MusicCollection {
+            name: s,
+            collection: Vec::new(),
+            song_count: 0
+        };
+        collection
+    }
 }
