@@ -536,7 +536,7 @@ impl eframe::App for TemplateApp {
 
                             if let Err(e) = r2c.process(&mut samples_to_visualize, &mut outdata) {
                                 // handle the error, maybe log it or show a message to the user
-                                eprintln!("FFT forward processing error: {}", e);
+                                eprintln!("FFT processing error: {}", e);
                                 return;
                             }
 
