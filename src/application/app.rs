@@ -224,7 +224,8 @@ impl eframe::App for TemplateApp {
                 ui.painter().extend(shapes);
             })
         });
-        
+
+
         egui::SidePanel::left("left panel").exact_width(200.0).show(ctx, |ui| {
             ui.label("Library");
             
@@ -232,7 +233,7 @@ impl eframe::App for TemplateApp {
                 let mut i: usize = 1;
                 for x in &self.playlists {
                    if ui.add(Label::new(&x.name).sense(Sense::click())).clicked() {
-                       if x.index == 1 {
+                       if x.index == 0 {
                            self.playlist_state = 1
                        }
                        else {
@@ -383,41 +384,56 @@ impl eframe::App for TemplateApp {
                     let mut shapes = vec![];
                     let n = self.visualizer_parameters.buffer_size;  // visualize the last 500 pairs of samples.
                     let samples_to_fetch = n;
+                    let buf_size = 2048;
+                    let samples_to_visualize = &self.audio_player.circular_buffer.lock().unwrap();
 
                     if self.visualizer_parameters.style == 0 {
                         if self.visualizer_parameters.buffer_size > 2048 {
                             self.visualizer_parameters.buffer_size = 512;
                         }
 
-                        let samples_to_visualize = &self.audio_player.samples_for_viz[idx.saturating_sub(2 * n)..=idx];
+
+
                         let middle_x = rect.center().x;
 
 
                         // Each sample will be spaced by a certain amount on the X-axis.
-                        let spacing_x = rect.width() / n as f32;
+                        let spacing_x = (rect.width() / buf_size as f32) * 2.0 ;
+                        let mut previous_point = pos2(0.0, 0.0);
 
-                        for i in (0..samples_to_visualize.len()).step_by(2) {
-                            if i + 1 >= samples_to_visualize.len() {
+                        for i in (0..buf_size).step_by(2) {
+                            if i + 1 >= buf_size {
                                 break;
                             }
 
+                            let sample1 = samples_to_visualize.get(i).unwrap_or(&0.0);
+                            let sample2 = samples_to_visualize.get(i + 1).unwrap_or(&0.0);
+
+
+
+
                             // Average the two samples
-                            let average_sample = (samples_to_visualize[i] + samples_to_visualize[i + 1]) / 2.0;
+                            let average_sample = (sample1 + sample2) / 2.0;
 
                             // Calculate the x-coordinate offset from the middle
-                            let offset_x = (i/2) as f32 * spacing_x - (samples_to_visualize.len() as f32 * spacing_x / 4.0);  // divide by 4 because we're considering two samples as one
+                            let offset_x = (i/2) as f32 * spacing_x - (buf_size as f32 * spacing_x / 4.0);  // divide by 4 because we're considering two samples as one
 
                             let start_x = middle_x + offset_x;
                             let end_x = start_x - spacing_x;
 
                             let start_point = pos2(start_x, rect.center().y + average_sample * rect.height() / 2.0);
-                            let end_point = pos2(end_x, rect.center().y + if i > 0 { (samples_to_visualize[i - 2] + samples_to_visualize[i - 1]) / 2.0 * rect.height() / 2.0 } else { 0.0 });
-
+                            if i == 0 {
+                                previous_point = start_point;
+                            }
                             shapes.push(epaint::Shape::line(
-                                [start_point, end_point].to_vec(),
-                                Stroke::new(2.5, color)
+                                [previous_point, start_point].to_vec(),
+                                Stroke::new(1.25, color)
                             ));
+
+                            previous_point = start_point;
+
                         }
+
                     }
 
                     if self.visualizer_parameters.style == 1 {
@@ -425,39 +441,37 @@ impl eframe::App for TemplateApp {
                             self.visualizer_parameters.buffer_size = 512;
                         }
 
-                        let mut samples_to_visualize = &self.audio_player.samples_for_viz[idx.saturating_sub(samples_to_fetch)..=idx];
-
-                        for i in (0..samples_to_visualize.len()).step_by(2) {
+                        let mut previous_point = pos2(0.0, 0.0);
+                        for i in (0..buf_size).step_by(2) {
                             if i + 1 >= samples_to_visualize.len() {
                                 break;  // If there's no pair for the last sample, break out of the loop.
                             }
 
-                            let x_sample = samples_to_visualize[i];
-                            let y_sample = samples_to_visualize[i + 1];
+                            let x_sample = samples_to_visualize.get(i).unwrap_or(&0.0);
+                            let y_sample = samples_to_visualize.get(i + 1).unwrap_or(&0.0);
 
                             let point_x = rect.center().x + x_sample * rect.width() / 2.0;
                             let point_y = rect.center().y - y_sample * rect.height() / 2.0;
 
                             let point = pos2(point_x, point_y);
-                            shapes.push(epaint::Shape::circle_filled(point, 2.0, color));
+                            if i == 0 {
+                                previous_point = point;
+                            }
 
 
                             if self.visualizer_parameters.lines_active {
                                 if i > 1 {
-                                    let prev_x_sample = samples_to_visualize[i - 2];
-                                    let prev_y_sample = samples_to_visualize[i - 1];
-
-                                    let prev_point_x = rect.center().x + prev_x_sample * rect.width() / 2.0;
-                                    let prev_point_y = rect.center().y - prev_y_sample * rect.height() / 2.0;
-
-                                    let prev_point = pos2(prev_point_x, prev_point_y);
 
                                     shapes.push(epaint::Shape::line(
-                                        [prev_point, point].to_vec(),
-                                        Stroke::new(1.5, color)
+                                        [previous_point, point].to_vec(),
+                                        Stroke::new(0.5, color)
                                     ));
                                 }
                             }
+                            else {
+                                shapes.push(epaint::Shape::circle_filled(point, 0.75, color));
+                            }
+                            previous_point = point;
                         }
                     }
 

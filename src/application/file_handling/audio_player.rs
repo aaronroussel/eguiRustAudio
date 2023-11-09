@@ -1,9 +1,10 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::path::*;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::{vec_deque, VecDeque};
+use circular_buffer::CircularBuffer;
 
 use rodio::{Decoder, OutputStream, source::Source, Sink, Sample};
 
@@ -13,6 +14,7 @@ pub struct AudioHandler {
     pub samples_for_viz: Vec<f32>,                 // Samples for visualization
     pub sample_index: Arc<AtomicUsize>,            // Atomic iterator/index
     pub duration: u32,
+    pub circular_buffer: Arc<Mutex<CircularBuffer<2048, f32>>>,
 }
 
 impl AudioHandler {
@@ -24,6 +26,7 @@ impl AudioHandler {
             samples_for_viz: Vec::new(),
             sample_index: Arc::new(AtomicUsize::new(0)),
             duration: 0,
+            circular_buffer: Arc::new(Mutex::new(CircularBuffer::<2048, f32>::new()))
         }
     }
 
@@ -31,14 +34,14 @@ impl AudioHandler {
         // Decode once for extracting samples
         let file_for_viz = File::open(path).unwrap();
         let source_for_viz = Decoder::new(BufReader::new(file_for_viz)).unwrap();
-        self.samples_for_viz = source_for_viz.convert_samples::<f32>().collect();
-
+        // self.samples_for_viz = source_for_viz.convert_samples::<f32>().collect();
         // Decode again for samples to be used by visualizer
         let file_for_playback = File::open(path).unwrap();
         let source_for_playback = Decoder::new(BufReader::new(file_for_playback)).unwrap();
 
+        let buffer = self.circular_buffer.clone();
         // Wrap the source with our indexed source
-        let (indexed_source, sample_index) = IndexedSource::new(source_for_playback);
+        let (indexed_source, sample_index) = IndexedSource::new(source_for_viz.convert_samples::<f32>(), buffer );
 
         // Save the indexed source and sample index
         self.sample_index = sample_index.clone();
@@ -68,22 +71,29 @@ impl AudioHandler {
     }
 }
 
-pub struct IndexedSource<S> {
+pub struct IndexedSource<S>
+    where
+        S: Source<Item = f32> + Send,
+{
     inner: S,
     pub index: Arc<AtomicUsize>,
+    pub buf_ref: Arc<Mutex<CircularBuffer<2048, f32>>>,
 }
 
-impl<S> IndexedSource<S> {
-    pub fn new(source: S) -> (Self, Arc<AtomicUsize>) {
+impl<S> IndexedSource<S>
+    where
+        S: Source<Item = f32> + Send,
+{
+    pub fn new(source: S, buffer_ref: Arc<Mutex<CircularBuffer<2048, f32>>>) -> (Self, Arc<AtomicUsize>) {
         let index = Arc::new(AtomicUsize::new(0));
-        (Self { inner: source, index: index.clone() }, index)
+        let buffer_ref = buffer_ref.clone();
+        (Self { inner: source, index: index.clone(), buf_ref: buffer_ref }, index)
     }
 }
 
 impl<S> Source for IndexedSource<S>
     where
-        S: Source,
-        S::Item: Sample,
+        S: Source<Item = f32> + Send,
 {
     fn current_frame_len(&self) -> Option<usize> {
         self.inner.current_frame_len()
@@ -104,15 +114,16 @@ impl<S> Source for IndexedSource<S>
 
 impl<S> Iterator for IndexedSource<S>
     where
-        S: Source,
-        S::Item: Sample,
+        S: Source<Item = f32> + Send,
 {
-    type Item = S::Item;
+    type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
         let sample = self.inner.next();
-        if sample.is_some() {
+        if let Some(sample_value) = sample {
             self.index.fetch_add(1, Ordering::Relaxed);
+            let mut buffer = self.buf_ref.lock().unwrap();
+            buffer.push_back(sample_value);
         }
         sample
     }
