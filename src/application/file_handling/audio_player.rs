@@ -4,6 +4,7 @@ use std::path::*;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::{vec_deque, VecDeque};
+use std::time::Duration;
 use circular_buffer::CircularBuffer;
 
 use rodio::{Decoder, OutputStream, source::Source, Sink, Sample};
@@ -13,7 +14,7 @@ pub struct AudioHandler {
     pub stream: OutputStream,
     pub samples_for_viz: Vec<f32>,                 // Samples for visualization
     pub sample_index: Arc<AtomicUsize>,            // Atomic iterator/index
-    pub duration: u32,
+    pub duration: u64,
     pub circular_buffer: Arc<Mutex<CircularBuffer<2048, f32>>>,
 }
 
@@ -31,17 +32,12 @@ impl AudioHandler {
     }
 
     pub fn load_file(&mut self, path: &Path) {
-        // Decode once for extracting samples
-        let file_for_viz = File::open(path).unwrap();
-        let source_for_viz = Decoder::new(BufReader::new(file_for_viz)).unwrap();
-        // self.samples_for_viz = source_for_viz.convert_samples::<f32>().collect();
-        // Decode again for samples to be used by visualizer
+
         let file_for_playback = File::open(path).unwrap();
         let source_for_playback = Decoder::new(BufReader::new(file_for_playback)).unwrap();
-
         let buffer = self.circular_buffer.clone();
         // Wrap the source with our indexed source
-        let (indexed_source, sample_index) = IndexedSource::new(source_for_viz.convert_samples::<f32>(), buffer );
+        let (indexed_source, sample_index) = IndexedSource::new(source_for_playback.convert_samples::<f32>(), buffer );
 
         // Save the indexed source and sample index
         self.sample_index = sample_index.clone();
