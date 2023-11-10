@@ -362,11 +362,7 @@ impl eframe::App for TemplateApp {
 
                     let origin_color = Color32::WHITE;  // or any other color you prefer for the origin
 
-                    // Convert these lines into shapes and add them to the shapes vector
-                    let mut origin_paint = vec![
-                        epaint::Shape::line(x_axis.to_vec(), Stroke::new(0.5, origin_color)),
-                        epaint::Shape::line(y_axis.to_vec(), Stroke::new(0.5, origin_color)),
-                    ];
+
 
 
                     let mut shapes = vec![];
@@ -539,9 +535,6 @@ impl eframe::App for TemplateApp {
 
                     }
                     ui.painter().extend(shapes);
-                    if self.visualizer_parameters.style == 1 {
-                        ui.painter().extend(origin_paint)
-                    }
                 }
 
 
