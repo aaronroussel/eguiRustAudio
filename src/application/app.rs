@@ -4,6 +4,7 @@ use super::file_handling::audio_player::*;
 use std::collections::VecDeque;
 use std::fs::File;
 use std::path::Path;
+use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use realfft::RealFftPlanner;
 use egui_modal;
@@ -23,6 +24,7 @@ pub struct TemplateApp {
     current_collection: Vec<MusicFile>,
     current_song: String,
     playlist_state: usize,
+    song_holder: Option<MusicFile>,
 }
 
 impl Default for TemplateApp {
@@ -40,6 +42,7 @@ impl Default for TemplateApp {
             current_collection: Vec::new(),
             current_song: String::new(),
             playlist_state: 0,
+            song_holder: None,
         }
     }
 }
@@ -122,15 +125,18 @@ impl eframe::App for TemplateApp {
             egui::menu::bar(ui, |ui|{
                 ui.menu_button("File", |ui|{
                     if ui.button("Add music file").clicked() {
-                        filepath_modal.open()
+                        filepath_modal.open();
+                        ui.close_menu();
                     }
                     if ui.button("Add music folder").clicked() {
-                       filepath_modal.open()
+                       filepath_modal.open();
+                        ui.close_menu();
                     }
                 });
                 ui.menu_button("Edit", |ui| {
                     if ui.button("Create new Playlist").clicked() {
-                        playlist_modal.open()
+                        playlist_modal.open();
+                        ui.close_menu();
                     }
                 });
                 ui.menu_button("View",|ui| {
@@ -227,18 +233,15 @@ impl eframe::App for TemplateApp {
 
 
         egui::SidePanel::left("left panel").exact_width(200.0).show(ctx, |ui| {
-            ui.label("Library");
+            if ui.add(Label::new("Library").sense(Sense::click())).clicked() {
+                self.playlist_state = 0;
+            };
             
-            egui::CollapsingHeader::new("Playlists").open(Some(true)).show(ui, |ui|{
+            egui::CollapsingHeader::new("Playlists").show(ui, |ui|{
                 let mut i: usize = 1;
                 for x in &self.playlists {
                    if ui.add(Label::new(&x.name).sense(Sense::click())).clicked() {
-                       if x.index == 0 {
-                           self.playlist_state = 1
-                       }
-                       else {
-                           self.playlist_state = (x.index - 1) as usize
-                       }
+                       self.playlist_state = (x.index + 1) as usize
                    }
                 }
             });
@@ -633,28 +636,29 @@ impl eframe::App for TemplateApp {
                             ui.label("Duration:");
                             ui.end_row();
                             if self.playlist_state == 0 {
-                                for z in &self.music_library {
 
-                                    let playlistadd_modal = egui_modal::Modal::new(ctx, "playlist_add modal")
-                                        .with_close_on_outside_click(true);
-                                    playlistadd_modal.show(|ui| {
-                                        playlistadd_modal.title(ui, "Select Playlist");
+                                let playlistadd_modal = egui_modal::Modal::new(ctx, "playlist_add modal")
+                                    .with_close_on_outside_click(true);
+                                playlistadd_modal.show(|ui| {
+                                    playlistadd_modal.title(ui, "Select Playlist");
 
-                                        playlistadd_modal.frame(ui, |ui|{
-                                            for mut x in self.playlists.clone() {
-                                                if ui.add(Label::new(&x.name).sense(Sense::click())).clicked() {
-                                                    &x.add_song(z.clone());
-                                                    playlistadd_modal.close();
-                                                }
-                                            }
-                                        });
-                                        playlistadd_modal.buttons(ui, |ui| {
-                                            if playlistadd_modal.button(ui, "close").clicked() {
+                                    playlistadd_modal.frame(ui, |ui|{
+                                        for mut x in &mut self.playlists {
+                                            if ui.add(Label::new(&x.name).sense(Sense::click())).clicked() {
+                                                let song = self.song_holder.clone();
+                                                x.add_song(song.unwrap());
                                                 playlistadd_modal.close();
                                             }
-                                        });
+                                        }
                                     });
+                                    playlistadd_modal.buttons(ui, |ui| {
+                                        if playlistadd_modal.button(ui, "close").clicked() {
+                                            playlistadd_modal.close();
+                                        }
+                                    });
+                                });
 
+                                for z in &self.music_library {
                                     if &z.title == "" {
                                         let response =
                                             ui.add(Label::new(&z.name).sense(Sense::click()));
@@ -680,7 +684,9 @@ impl eframe::App for TemplateApp {
                                             }
 
                                             if ui.button("Add to Playlist").clicked() {
+                                                self.song_holder = Some(z.clone());
                                                 playlistadd_modal.open();
+                                                ui.close_menu();
                                             }
 
                                             if ui.button("Add to Queue").clicked() {
@@ -719,7 +725,9 @@ impl eframe::App for TemplateApp {
                                                 self.current_song = String::from(&z.title);
                                             }
                                             if ui.button("Add to Playlist").clicked() {
+                                                self.song_holder = Some(z.clone());
                                                 playlistadd_modal.open();
+                                                ui.close_menu();
                                             }
 
                                             if ui.button("Add to Queue").clicked() {

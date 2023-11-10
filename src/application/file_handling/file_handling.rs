@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::io;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MusicFile {
     pub name: String,
     pub file_path: PathBuf,
@@ -104,7 +104,7 @@ pub fn new_library() -> Vec<MusicFile> {
 }
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MusicCollection {
     pub name: String,
     pub collection: Vec<MusicFile>,
