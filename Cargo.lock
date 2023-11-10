@@ -571,6 +571,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "circular-buffer"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d804b3714304cb57ef650d0aa72092bd4815a45a5c59f7799669207a3b1026a1"
+
+[[package]]
 name = "clang-sys"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -984,6 +990,7 @@ name = "eguiRustAudio"
 version = "0.1.0"
 dependencies = [
  "audiotags",
+ "circular-buffer",
  "eframe",
  "egui",
  "egui-modal",

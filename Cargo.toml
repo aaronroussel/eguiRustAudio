@@ -20,6 +20,7 @@ eframe = { version = "0.22.0", default-features = false, features = [
 ] }
 log = "0.4"
 realfft = "3.3.0"
+circular-buffer = "0.1.5"
 
 
 # You only need serde if you want app persistence:
