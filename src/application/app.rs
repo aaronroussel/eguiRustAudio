@@ -11,6 +11,7 @@ use egui_modal;
 use egui::*;
 use egui::Color32;
 use egui::WidgetType::ComboBox;
+use egui::{TextureHandle, Ui, Image};
 
 
 pub struct TemplateApp {
@@ -25,6 +26,8 @@ pub struct TemplateApp {
     current_song: String,
     playlist_state: usize,
     song_holder: Option<MusicFile>,
+    colors: u32,
+    party_mode_on: bool,
 }
 
 impl Default for TemplateApp {
@@ -43,6 +46,8 @@ impl Default for TemplateApp {
             current_song: String::new(),
             playlist_state: 0,
             song_holder: None,
+            colors: 0,
+            party_mode_on: true,
         }
     }
 }
@@ -54,11 +59,33 @@ impl TemplateApp {
         
         Default::default()
     }
+
 }
 
 
 impl eframe::App for TemplateApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+
+
+    fn update(&mut self, mut ctx: &egui::Context, _frame: &mut eframe::Frame) {
+
+        ctx.input(|input| {
+            if input.key_pressed(egui::Key::V) {
+                if self.visualizer_parameters.is_active {
+                    self.visualizer_parameters.is_active = false
+                }
+                else {
+                    self.visualizer_parameters.is_active = true
+                }
+            }
+            if input.key_pressed(egui::Key::Space) {
+                if self.audio_player.sink.is_paused() {
+                    self.audio_player.sink.play();
+                }
+                else {
+                    self.audio_player.sink.pause();
+                }
+            }
+        });
 
 
         if self.audio_player.sink.empty() {
@@ -68,10 +95,9 @@ impl eframe::App for TemplateApp {
             }
         }
 
-        // 1345x775
+        // 2400x1600
 
-        // _frame.set_window_size(vec2(1345.0, 775.0));
-
+        // _frame.set_window_size(vec2(2400.0, 1600.0));
         ctx.set_visuals(egui::Visuals::dark());
 
         let filepath_modal = egui_modal::Modal::new(ctx, "filepath modal")
@@ -151,6 +177,15 @@ impl eframe::App for TemplateApp {
                         }
                     }
                     println!("{}", self.visualizer_parameters.is_active);
+                    if ui.button("PARTY MODE").clicked() {
+                        if self.party_mode_on {
+                            self.party_mode_on = false
+                        }
+                        else {
+                            self.party_mode_on = true
+                        }
+                        ui.close_menu();
+                    }
                 });
             });
             ui.style_mut().spacing.slider_width = 100.0;
@@ -214,7 +249,7 @@ impl eframe::App for TemplateApp {
                 let desired_size = ui.available_width() * vec2(0.2, 0.05);
                 let (_id, rect) = ui.allocate_space(desired_size);
                 let playback_position = usize_val as f32 / self.audio_player.duration as f32;
-                let start_point = rect.center() - vec2(300.0, 0.0);
+                let start_point = rect.center() - vec2(400.0, 0.0);
 
                 let playback_point =
                     if playback_position > 0.0 {start_point + vec2(playback_position * 600.0, 0.0)}
@@ -223,13 +258,8 @@ impl eframe::App for TemplateApp {
                     start_point + vec2(playback_position * 600.0, 0.0);
                 let mut shapes = vec![];
                 shapes.push(epaint::Shape::line(
-                    [start_point, start_point + vec2(600.0, 0.0)].to_vec(),
+                    [start_point, start_point + vec2(800.0, 0.0)].to_vec(),
                     Stroke::new(2.5, egui::Color32::BLACK)
-                ));
-                shapes.push(epaint::Shape::circle_filled(playback_point, 5.0, egui::Color32::LIGHT_BLUE));
-                shapes.push(epaint::Shape::line(
-                    [start_point, playback_point].to_vec(),
-                    Stroke::new(2.5, egui::Color32::LIGHT_BLUE)
                 ));
 
                 ui.painter().extend(shapes);
@@ -252,7 +282,7 @@ impl eframe::App for TemplateApp {
             });
         });
 
-        egui::SidePanel::right("right panel").exact_width(250.0).show(ctx, |ui| {
+        egui::SidePanel::right("right panel").exact_width(250.0).show_animated(ctx, true, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 egui::Grid::new("some_unique_id")
                     .striped(true)
@@ -294,6 +324,8 @@ impl eframe::App for TemplateApp {
                 else {
                     "EQ"
                 };
+                let mut flash_color = egui::Color32::LIGHT_BLUE;
+
 
                 let style_options = ["Waveform", "Lissajous", "Stereo Spread", "EQ"];
 
@@ -337,7 +369,23 @@ impl eframe::App for TemplateApp {
                     }
                 });
 
+                if self.colors < 29 {
+                    self.colors = self.colors + 1;
+                    if self.colors >= 0 && self.colors < 10 {
+                        flash_color = egui::Color32::RED;
+                    }
 
+                    else if self.colors >= 10 && self.colors < 20 {
+                        flash_color = egui::Color32::GREEN;
+                    }
+                    else {
+                        flash_color = egui::Color32::BLUE;
+                    }
+                }
+                else {
+
+                    self.colors = 0
+                }
 
 
                 if !self.audio_player.sink.empty() {
@@ -409,10 +457,19 @@ impl eframe::App for TemplateApp {
                             if i == 0 {
                                 previous_point = start_point;
                             }
-                            shapes.push(epaint::Shape::line(
-                                [previous_point, start_point].to_vec(),
-                                Stroke::new(1.25, color)
-                            ));
+                            if self.party_mode_on {
+
+                                shapes.push(epaint::Shape::line(
+                                    [previous_point, start_point].to_vec(),
+                                    Stroke::new(2.0, flash_color)
+                                ));
+                            }
+                            else {
+                                shapes.push(epaint::Shape::line(
+                                    [previous_point, start_point].to_vec(),
+                                    Stroke::new(1.25, color)
+                                ));
+                            }
 
                             previous_point = start_point;
 
@@ -445,15 +502,27 @@ impl eframe::App for TemplateApp {
 
                             if self.visualizer_parameters.lines_active {
                                 if i > 1 {
-
-                                    shapes.push(epaint::Shape::line(
-                                        [previous_point, point].to_vec(),
-                                        Stroke::new(0.5, color)
-                                    ));
+                                    if self.party_mode_on {
+                                        shapes.push(epaint::Shape::line(
+                                            [previous_point, point].to_vec(),
+                                            Stroke::new(0.7, flash_color)
+                                        ));
+                                    }
+                                    else {
+                                        shapes.push(epaint::Shape::line(
+                                            [previous_point, point].to_vec(),
+                                            Stroke::new(0.5, color)
+                                        ));
+                                    }
                                 }
                             }
                             else {
-                                shapes.push(epaint::Shape::circle_filled(point, 0.75, color));
+                                if self.party_mode_on {
+                                    shapes.push(epaint::Shape::circle_filled(point, 1.0, flash_color));
+                                }
+                                else {
+                                    shapes.push(epaint::Shape::circle_filled(point, 0.75, color));
+                                }
                             }
                             previous_point = point;
                         }
@@ -481,12 +550,19 @@ impl eframe::App for TemplateApp {
                             let point_y = (rect.max.y + rotated_y * rect.height() / -2.0 ) - 75.0;
 
                             let point = pos2(point_x, point_y);
-                            shapes.push(epaint::Shape::circle_filled(point, 0.7, color));
+                            if self.party_mode_on {
+
+                                shapes.push(epaint::Shape::circle_filled(point, 0.7, flash_color));
+                            }
+                            else {
+                                shapes.push(epaint::Shape::circle_filled(point, 0.7, color));
+                            }
 
                         }
                     }
 
                     if self.visualizer_parameters.style == 4 {
+
                         let buffer_size = buf_size;
                             let mut samples = samples_to_visualize.to_vec();
                             let mut planner = RealFftPlanner::<f32>::new();
@@ -498,35 +574,49 @@ impl eframe::App for TemplateApp {
                                 return;
                             }
                             let amplitude_spectrum: Vec<f32> = outdata.iter().map(|c| c.norm()).collect();
-                            let start_x = 0.0;
-                            let start_y = rect.center().y + 20.0;
+                            // let start_x = 0.0;
+                            // let start_y = rect.center().y + 20.0;
                             let offset_x = ((rect.width() - 500.0) / 205.0) * 2.0;
                             println!("{}", amplitude_spectrum.len());
 
-                            for mut i in 1..69 {
+                            for mut i in 1..74 {
                                 let mut average: f32 = 0.0;
                                 let mut sum: f32 = 0.0;
                                 // x values, adjusted to center the visualization
                                 for x in 0..20 {
-                                    sum += amplitude_spectrum[(i * 4) + x];
+                                    sum += amplitude_spectrum[(i * 5) + x];
                                     average = sum / x as f32;
                                 }
                                 let mut x1: f32 = 0.0;
-                                let mut  x2 = 0.0;
                                 let mut y1 = 0.0;
-                                let mut y2 = 0.0;
 
-                                x1 = 275.0 + (i as f32 * offset_x) * 2.0;
+                                x1 = 400.0 + ( (i as f32 * offset_x) - 10.0) * 2.0;
 
-                                y1 = rect.center().y + 100.0 + (average * -4.0) ;
+                                y1 = (ui.available_height() / 2.0) + (average * -4.0) + 700.0;
+                                let y2 = (ui.available_height() / 2.0) - (average * -4.0) / 2.0 + 700.0;
 
                                 // Points
-                                let start_point = pos2(x1, rect.center().y + 100.0);
-                                let end_point = pos2(x1, y1);
+                                let start_point = pos2(x1, (ui.available_height() / 2.0) + 700.0);
+                                let mut end_point = pos2(x1, y1);
+                                let other_end_point = pos2(x1, y2);
+
+
+                                if self.party_mode_on {
+                                    shapes.push(epaint::Shape::line(
+                                        [start_point, end_point].to_vec(),
+                                        Stroke::new(10.0, flash_color)
+                                    ));
+                                }
+                                else {
+                                    shapes.push(epaint::Shape::line(
+                                        [start_point, end_point].to_vec(),
+                                        Stroke::new(10.0, flash_color)
+                                    ));
+                                }
 
                                 shapes.push(epaint::Shape::line(
-                                    [start_point, end_point].to_vec(),
-                                    Stroke::new(10.0, egui::Color32::GRAY)
+                                    [start_point, other_end_point].to_vec(),
+                                    Stroke::new(10.0, egui::Color32::DARK_GRAY)
                                 ));
                             }
 
@@ -601,6 +691,7 @@ impl eframe::App for TemplateApp {
                                                 ui.close_menu();
                                                 self.current_song = String::from(&z.name);
                                                 print!("abcc, {}", self.current_song);
+                                                ui.close_menu()
                                             }
 
                                             if ui.button("Add to Playlist").clicked() {
@@ -616,9 +707,6 @@ impl eframe::App for TemplateApp {
 
                                             if ui.button("Add to beginning of Queue").clicked() {
                                                 self.song_queue.push_front(z.clone());
-                                                ui.close_menu();
-                                            }
-                                            if ui.button("Close Menu").clicked() {
                                                 ui.close_menu();
                                             }
                                         });
@@ -643,6 +731,7 @@ impl eframe::App for TemplateApp {
                                                 let file_path = &z.file_path;
                                                 self.audio_player.load_file(file_path.as_path());
                                                 self.current_song = String::from(&z.title);
+                                                ui.close_menu()
                                             }
                                             if ui.button("Add to Playlist").clicked() {
                                                 self.song_holder = Some(z.clone());
@@ -652,9 +741,11 @@ impl eframe::App for TemplateApp {
 
                                             if ui.button("Add to Queue").clicked() {
                                                 self.song_queue.push_back(z.clone());
+                                                ui.close_menu()
                                             }
                                             if ui.button("Add to beginning of Queue").clicked() {
                                                 self.song_queue.push_front(z.clone());
+                                                ui.close_menu()
                                             }
                                         });
                                     }
