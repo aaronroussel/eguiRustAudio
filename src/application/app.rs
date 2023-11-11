@@ -28,6 +28,7 @@ pub struct TemplateApp {
     song_holder: Option<MusicFile>,
     colors: u32,
     party_mode_on: bool,
+    modal_is_open: bool,
 }
 
 impl Default for TemplateApp {
@@ -47,7 +48,8 @@ impl Default for TemplateApp {
             playlist_state: 0,
             song_holder: None,
             colors: 0,
-            party_mode_on: true,
+            party_mode_on: false,
+            modal_is_open: false,
         }
     }
 }
@@ -66,15 +68,16 @@ impl TemplateApp {
 impl eframe::App for TemplateApp {
 
 
-    fn update(&mut self, mut ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, mut ctx: &egui::Context, frame: &mut eframe::Frame) {
 
         ctx.input(|input| {
             if input.key_pressed(egui::Key::V) {
-                if self.visualizer_parameters.is_active {
-                    self.visualizer_parameters.is_active = false
-                }
-                else {
-                    self.visualizer_parameters.is_active = true
+                if !self.modal_is_open {
+                    if self.visualizer_parameters.is_active {
+                        self.visualizer_parameters.is_active = false
+                    } else {
+                        self.visualizer_parameters.is_active = true
+                    }
                 }
             }
             if input.key_pressed(egui::Key::Space) {
@@ -103,6 +106,7 @@ impl eframe::App for TemplateApp {
         let filepath_modal = egui_modal::Modal::new(ctx, "filepath modal")
             .with_close_on_outside_click(true);
         filepath_modal.show(|ui| {
+            self.modal_is_open = true;
             filepath_modal.title(ui, "Enter File Path");
 
             filepath_modal.frame(ui, |ui|{
@@ -121,6 +125,7 @@ impl eframe::App for TemplateApp {
                         self.music_library.push(x);
                     }
                     filepath_modal.close();
+                    self.modal_is_open = false;
                     self.fp = "".to_owned();
                 }        
             });
@@ -129,6 +134,7 @@ impl eframe::App for TemplateApp {
         let playlist_modal = egui_modal::Modal::new(ctx, "playlist modal")
             .with_close_on_outside_click(true);
         playlist_modal.show(|ui| {
+            self.modal_is_open = true;
             playlist_modal.title(ui, "Create Playlist");
             playlist_modal.frame(ui, |ui| {
                 let playlist_name = ui.add(TextEdit::singleline(&mut self.fp)
@@ -142,9 +148,10 @@ impl eframe::App for TemplateApp {
                     let playlist = MusicCollection::new(String::from(&self.fp), self.playlists.len() as i32);
                     self.playlists.push(playlist);
                     playlist_modal.close();
+                    self.modal_is_open = false;
                     self.fp = "".to_owned();
                 }
-            })
+            });
         });
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -251,6 +258,7 @@ impl eframe::App for TemplateApp {
                 let playback_position = usize_val as f32 / self.audio_player.duration as f32;
                 let start_point = rect.center() - vec2(400.0, 0.0);
 
+
                 let playback_point =
                     if playback_position > 0.0 {start_point + vec2(playback_position * 600.0, 0.0)}
                     else {start_point};
@@ -261,7 +269,6 @@ impl eframe::App for TemplateApp {
                     [start_point, start_point + vec2(800.0, 0.0)].to_vec(),
                     Stroke::new(2.5, egui::Color32::BLACK)
                 ));
-
                 ui.painter().extend(shapes);
             })
         });
@@ -282,7 +289,7 @@ impl eframe::App for TemplateApp {
             });
         });
 
-        egui::SidePanel::right("right panel").exact_width(250.0).show_animated(ctx, true, |ui| {
+        egui::SidePanel::right("right panel").exact_width(250.0).show(ctx,  |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 egui::Grid::new("some_unique_id")
                     .striped(true)
@@ -410,6 +417,8 @@ impl eframe::App for TemplateApp {
 
                     let origin_color = Color32::WHITE;  // or any other color you prefer for the origin
 
+                    let window_size = frame.info().window_info.size;
+
 
 
 
@@ -453,7 +462,7 @@ impl eframe::App for TemplateApp {
                             let start_x = middle_x + offset_x;
                             let end_x = start_x - spacing_x;
 
-                            let start_point = pos2(start_x, rect.center().y + average_sample * rect.height() / 2.0);
+                            let start_point = pos2(start_x, (window_size.y / 2.0) + (average_sample * rect.height()) / 2.0 + 100.0);
                             if i == 0 {
                                 previous_point = start_point;
                             }
@@ -492,7 +501,7 @@ impl eframe::App for TemplateApp {
                             let y_sample = samples_to_visualize.get(i + 1).unwrap_or(&0.0);
 
                             let point_x = rect.center().x + x_sample * rect.width() / 2.0;
-                            let point_y = rect.center().y - y_sample * rect.height() / 2.0;
+                            let point_y = rect.center().y - y_sample * rect.height() / 2.0 + 100.0;
 
                             let point = pos2(point_x, point_y);
                             if i == 0 {
@@ -547,7 +556,7 @@ impl eframe::App for TemplateApp {
                             let rotated_y = x_sample * angle_rad.sin() + y_sample * angle_rad.cos();
 
                             let point_x = rect.center().x + rotated_x * rect.width() / -2.0;
-                            let point_y = (rect.max.y + rotated_y * rect.height() / -2.0 ) - 75.0;
+                            let point_y = (rect.max.y + rotated_y * rect.height() / -2.0 ) - 25.0;
 
                             let point = pos2(point_x, point_y);
                             if self.party_mode_on {
@@ -576,7 +585,9 @@ impl eframe::App for TemplateApp {
                             let amplitude_spectrum: Vec<f32> = outdata.iter().map(|c| c.norm()).collect();
                             // let start_x = 0.0;
                             // let start_y = rect.center().y + 20.0;
-                            let offset_x = ((rect.width() - 500.0) / 205.0) * 2.0;
+                            let x_area = window_size.x - 400.0;
+                            let offset_x = ( x_area / 74.0 ) + 5.0;
+                            //let offset_x = ((rect.width() - 500.0) / 205.0) * 2.0;
                             println!("{}", amplitude_spectrum.len());
 
                             for mut i in 1..74 {
@@ -589,15 +600,14 @@ impl eframe::App for TemplateApp {
                                 }
                                 let mut x1: f32 = 0.0;
                                 let mut y1 = 0.0;
+                                x1 = 300.0 + ( (i as f32 * offset_x) * 0.7 );
 
-                                x1 = 400.0 + ( (i as f32 * offset_x) - 10.0) * 2.0;
-
-                                y1 = (ui.available_height() / 2.0) + (average * -4.0) + 700.0;
-                                let y2 = (ui.available_height() / 2.0) - (average * -4.0) / 2.0 + 700.0;
+                                y1 = (window_size.y / 2.0) + (average * -4.0) + 150.0;
+                                let y2 = (window_size.y / 2.0) - (average * -4.0) / 2.0 + 150.0;
 
                                 // Points
-                                let start_point = pos2(x1, (ui.available_height() / 2.0) + 700.0);
-                                let mut end_point = pos2(x1, y1);
+                                let start_point = pos2(x1, (window_size.y / 2.0) + 150.0);
+                                let end_point = pos2(x1, y1);
                                 let other_end_point = pos2(x1, y2);
 
 
@@ -610,7 +620,7 @@ impl eframe::App for TemplateApp {
                                 else {
                                     shapes.push(epaint::Shape::line(
                                         [start_point, end_point].to_vec(),
-                                        Stroke::new(10.0, flash_color)
+                                        Stroke::new(10.0, color)
                                     ));
                                 }
 
@@ -780,6 +790,7 @@ impl eframe::App for TemplateApp {
                                                 ui.close_menu();
                                                 self.current_song = String::from(&z.name);
                                                 print!("abcc, {}", self.current_song);
+                                                ui.close_menu();
                                             }
                                             if ui.button("Add to Queue").clicked() {
                                                 self.song_queue.push_back(z.clone());
@@ -788,9 +799,6 @@ impl eframe::App for TemplateApp {
 
                                             if ui.button("Add to beginning of Queue").clicked() {
                                                 self.song_queue.push_front(z.clone());
-                                                ui.close_menu();
-                                            }
-                                            if ui.button("Close Menu").clicked() {
                                                 ui.close_menu();
                                             }
                                         });
@@ -814,12 +822,15 @@ impl eframe::App for TemplateApp {
                                                 let file_path = &z.file_path;
                                                 self.audio_player.load_file(file_path.as_path());
                                                 self.current_song = String::from(&z.title);
+                                                ui.close_menu();
                                             }
                                             if ui.button("Add to Queue").clicked() {
                                                 self.song_queue.push_back(z.clone());
+                                                ui.close_menu();
                                             }
                                             if ui.button("Add to beginning of Queue").clicked() {
                                                 self.song_queue.push_front(z.clone());
+                                                ui.close_menu();
                                             }
                                         });
                                     }
