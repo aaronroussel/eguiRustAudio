@@ -462,7 +462,7 @@ impl eframe::App for TemplateApp {
                             let start_x = middle_x + offset_x;
                             let end_x = start_x - spacing_x;
 
-                            let start_point = pos2(start_x, (window_size.y / 2.0) + (average_sample * rect.height()) / 2.0 + 100.0);
+                            let start_point = pos2(start_x, (window_size.y / 2.0) + (average_sample * window_size.y) / 3.0 + 100.0);
                             if i == 0 {
                                 previous_point = start_point;
                             }
@@ -500,8 +500,8 @@ impl eframe::App for TemplateApp {
                             let x_sample = samples_to_visualize.get(i).unwrap_or(&0.0);
                             let y_sample = samples_to_visualize.get(i + 1).unwrap_or(&0.0);
 
-                            let point_x = rect.center().x + x_sample * rect.width() / 2.0;
-                            let point_y = rect.center().y - y_sample * rect.height() / 2.0 + 100.0;
+                            let point_x = rect.center().x + x_sample * window_size.x / 3.0;
+                            let point_y = rect.center().y - y_sample * window_size.y / 3.0 + 100.0;
 
                             let point = pos2(point_x, point_y);
                             if i == 0 {
@@ -555,13 +555,13 @@ impl eframe::App for TemplateApp {
                             let rotated_x = x_sample * angle_rad.cos() - y_sample * angle_rad.sin();
                             let rotated_y = x_sample * angle_rad.sin() + y_sample * angle_rad.cos();
 
-                            let point_x = rect.center().x + rotated_x * rect.width() / -2.0;
-                            let point_y = (rect.max.y + rotated_y * rect.height() / -2.0 ) - 25.0;
+                            let point_x = (window_size.x / 2.0) + rotated_x * window_size.x / -2.0;
+                            let point_y = (window_size.y + rotated_y * window_size.y / -2.0 ) - 25.0;
 
                             let point = pos2(point_x, point_y);
                             if self.party_mode_on {
 
-                                shapes.push(epaint::Shape::circle_filled(point, 0.7, flash_color));
+                                shapes.push(epaint::Shape::circle_filled(point, 1.0, flash_color));
                             }
                             else {
                                 shapes.push(epaint::Shape::circle_filled(point, 0.7, color));

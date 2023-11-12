@@ -32,21 +32,13 @@ impl AudioHandler {
     }
 
     pub fn load_file(&mut self, path: &Path) {
-
         let file_for_playback = File::open(path).unwrap();
         let source_for_playback = Decoder::new(BufReader::new(file_for_playback)).unwrap();
         let buffer = self.circular_buffer.clone();
-        // Wrap the source with our indexed source
         let (indexed_source, sample_index) = IndexedSource::new(source_for_playback.convert_samples::<f32>(), buffer );
-
-        // Save the indexed source and sample index
         self.sample_index = sample_index.clone();
-
-
-        self.sink.append(indexed_source); // Assuming IndexedSource implements Clone
-
+        self.sink.append(indexed_source);
         self.sink.play();
-        println!("audio file playing");
     }
 
 
