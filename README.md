@@ -17,9 +17,10 @@ a rust based music player app with visualization features
 ## Roadmap
 
 - [x] Add support for tags/META data.
-- [x] Find a way to access sample data as it is begin played by the audio thread (for visualization)
+- [x] Find a way to access sample data as it is being played by the audio thread (for visualization)
 - [x] Add right click menu for actions on songs
 - [x] Add EQ visualization
+- [ ] Refactor UI Update function so it's not a complete mess
 - [ ] Clean up UI formatting
 - [ ] Fix visualization scaling for certain modes
 - [ ] Add actual play/pause buttons
