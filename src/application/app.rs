@@ -83,6 +83,10 @@ impl TemplateApp {
 }
 
 impl eframe::App for TemplateApp {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
+    }
+
     fn update(&mut self, mut ctx: &egui::Context, frame: &mut eframe::Frame) {
         // -----------------------------------------------------------------------------------------------
         // This is the main update loop for the GUI. It is called continuously while the app is running,
