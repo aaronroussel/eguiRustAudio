@@ -1,4 +1,7 @@
 use audiotags::Tag;
+use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
+use serde::ser::{Serialize, SerializeMap, SerializeSeq, SerializeStruct, Serializer};
+use std::fmt;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
@@ -7,7 +10,7 @@ use std::path::PathBuf;
 // MusicFile struct
 // This struct is used to store the metadata of a music file, as well as the location of the file.
 // --------------------------------------------------------------------------------------------------
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct MusicFile {
     pub name: String,
     pub file_path: PathBuf,
@@ -70,7 +73,7 @@ pub fn new_library() -> Vec<MusicFile> {
 // This struct is used to store a collection [aka playlists] of music files, as well as the name of the collection
 // and the number of songs in the collection.
 // --------------------------------------------------------------------------------------------------
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct MusicCollection {
     pub name: String,
     pub collection: Vec<MusicFile>,

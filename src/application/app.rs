@@ -15,21 +15,34 @@ use std::sync::atomic::Ordering;
 //-----------------------------------------------------------------------------------------------
 // This is the main app struct, it holds all the data and methods for the app
 //-----------------------------------------------------------------------------------------------
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct TemplateApp {
-    // ** NEED TO ADD SERDE SERIALIZATION FOR APP PERSISTENCE **
     music_library: Vec<MusicFile>,
-    audio_player: AudioHandler,
-    seek: f32,
-    fp: String,
-    visualizer_parameters: VisualizerParameters,
-    song_queue: VecDeque<MusicFile>,
     playlists: Vec<MusicCollection>,
+    #[serde(skip)]
+    audio_player: AudioHandler,
+    #[serde(skip)]
+    seek: f32,
+    #[serde(skip)]
+    fp: String,
+    #[serde(skip)]
+    visualizer_parameters: VisualizerParameters,
+    #[serde(skip)]
     current_collection: Vec<MusicFile>,
+    #[serde(skip)]
+    song_queue: VecDeque<MusicFile>,
+    #[serde(skip)]
     current_song: String,
+    #[serde(skip)]
     playlist_state: usize,
+    #[serde(skip)]
     song_holder: Option<MusicFile>,
+    #[serde(skip)]
     colors: u32,
+    #[serde(skip)]
     party_mode_on: bool,
+    #[serde(skip)]
     modal_is_open: bool,
 }
 
@@ -58,7 +71,14 @@ impl TemplateApp {
     // Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using `ctx.set_visuals()`.
-        Default::default()
+
+        if let Some(storage) = cc.storage {
+            println!("Storage is not None");
+            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        } else {
+            println!("Storage is None");
+            return Default::default();
+        }
     }
 }
 

@@ -10,7 +10,6 @@ use std::time::Duration;
 use rodio::{source::Source, Decoder, OutputStream, Sample, Sink};
 
 // this is the audio handler, it is responsible for handling all audio related tasks
-
 pub struct AudioHandler {
     pub sink: Sink,           // controls audio playback to the OS
     pub stream: OutputStream, // output stream for audio

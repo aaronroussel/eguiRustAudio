@@ -7,7 +7,7 @@ rust-version = "1.65"
 
 
 [dependencies]
-egui = "0.22.0"
+egui = { vresion = "0.22.0", features = ["persistence"] }
 egui-modal = "0.2.4"
 audiotags = "0.4.1"
 rodio = "0.17.1"
