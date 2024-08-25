@@ -90,11 +90,11 @@ impl eframe::App for TemplateApp {
     fn update(&mut self, mut ctx: &egui::Context, frame: &mut eframe::Frame) {
         // -----------------------------------------------------------------------------------------------
         // This is the main update loop for the GUI. It is called continuously while the app is running,
-        // roughly 60 times per second. Keep in mind that blocking this loop will freeze the GUI until
+        // roughly 60 times per second (possibly higher depending on monitor refresh rate). Keep in mind that blocking this loop will freeze the GUI until
         // the blocking operation is complete.
         // -----------------------------------------------------------------------------------------------
         //
-        // *** BEWARE, THIS NEEDS SERIOUS REFACTORING ***
+        // *** NEEDS SERIOUS REFACTORING ***
         //
         // -----------------------------------------------------------------------------------------------
 
