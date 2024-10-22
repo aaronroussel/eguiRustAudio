@@ -7,9 +7,11 @@ rust-version = "1.65"
 
 
 [dependencies]
-egui = "0.22.0"
+egui = { vresion = "0.22.0", features = ["persistence"] }
+egui-modal = "0.2.4"
 audiotags = "0.4.1"
 rodio = "0.17.1"
+image = "0.23.14"
 eframe = { version = "0.22.0", default-features = false, features = [
     "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
@@ -17,6 +19,8 @@ eframe = { version = "0.22.0", default-features = false, features = [
     "persistence",   # Enable restoring app state when restarting the app.
 ] }
 log = "0.4"
+realfft = "3.3.0"
+circular-buffer = "0.1.5"
 
 
 # You only need serde if you want app persistence:
